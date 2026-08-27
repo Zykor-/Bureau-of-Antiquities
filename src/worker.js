@@ -16,13 +16,27 @@ function tableUrl(env, recordId = "") {
   return recordId ? `${base}/${recordId}` : base;
 }
 
+async function airtableError(res, fallback) {
+  let detail = "";
+  try {
+    const data = await res.json();
+    detail = data?.error?.message || data?.error?.type || "";
+  } catch {
+    // Ignore non-JSON error bodies.
+  }
+  return json({ error: detail ? `${fallback} (${detail})` : fallback }, res.status);
+}
+
 async function listProjects(env) {
+  if (!env.AIRTABLE_TOKEN) return json({ error: "Airtable token is not configured in Cloudflare." }, 500);
+  if (!env.AIRTABLE_BASE_ID) return json({ error: "Airtable base ID is not configured." }, 500);
+
   const url = new URL(tableUrl(env));
   url.searchParams.set("filterByFormula", "NOT({Completed})");
   url.searchParams.set("sort[0][field]", "Owner");
   url.searchParams.set("sort[0][direction]", "asc");
   const res = await fetch(url, { headers: airtableHeaders(env) });
-  if (!res.ok) return json({ error: "Unable to load projects." }, res.status);
+  if (!res.ok) return airtableError(res, "Unable to load projects.");
   const data = await res.json();
   return json(data.records.map((record) => ({
     id: record.id,
@@ -33,6 +47,9 @@ async function listProjects(env) {
 }
 
 async function createProject(request, env) {
+  if (!env.AIRTABLE_TOKEN) return json({ error: "Airtable token is not configured in Cloudflare." }, 500);
+  if (!env.AIRTABLE_BASE_ID) return json({ error: "Airtable base ID is not configured." }, 500);
+
   const body = await request.json();
   const fields = {
     Owner: String(body.owner || "").trim(),
@@ -46,11 +63,14 @@ async function createProject(request, env) {
     headers: airtableHeaders(env),
     body: JSON.stringify({ fields }),
   });
-  if (!res.ok) return json({ error: "Unable to create project." }, res.status);
+  if (!res.ok) return airtableError(res, "Unable to create project.");
   return json(await res.json(), 201);
 }
 
 async function updateProject(request, env, id) {
+  if (!env.AIRTABLE_TOKEN) return json({ error: "Airtable token is not configured in Cloudflare." }, 500);
+  if (!env.AIRTABLE_BASE_ID) return json({ error: "Airtable base ID is not configured." }, 500);
+
   const body = await request.json();
   const fields = {};
   if ("owner" in body) fields.Owner = String(body.owner || "").trim();
@@ -62,7 +82,7 @@ async function updateProject(request, env, id) {
     headers: airtableHeaders(env),
     body: JSON.stringify({ fields }),
   });
-  if (!res.ok) return json({ error: "Unable to update project." }, res.status);
+  if (!res.ok) return airtableError(res, "Unable to update project.");
   return json(await res.json());
 }
 
