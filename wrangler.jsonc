@@ -8,6 +8,7 @@
     "binding": "ASSETS"
   },
   "vars": {
+    "AIRTABLE_BASE_ID": "appqZyWZPF5Tp5V3Q",
     "AIRTABLE_PROJECTS_TABLE": "Projects"
   }
 }
