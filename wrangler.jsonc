@@ -3,6 +3,10 @@
   "name": "bureau-of-antiquities",
   "main": "src/worker.js",
   "compatibility_date": "2026-08-26",
+  "keep_vars": true,
+  "secrets": {
+    "required": ["AIRTABLE_TOKEN"]
+  },
   "assets": {
     "directory": "./public",
     "binding": "ASSETS"
