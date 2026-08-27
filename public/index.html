@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#7d611b" />
+  <meta name="theme-color" content="#16120b" />
   <meta name="description" content="Bureau of Antiquities RUIN guild project tracker." />
   <title>Bureau of Antiquities</title>
   <link rel="icon" href="https://raw.githubusercontent.com/Zykor-/Bureau-of-Antiquities/main/ChatGPT%20Image%20Aug%2026%2C%202026%2C%2009_42_49%20PM%20%282%29.png" />
   <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/enhancements.css" />
 </head>
 <body>
   <header class="site-header">
@@ -29,7 +30,7 @@
 
       <div class="status-strip" aria-label="Guild board status">
         <div class="status-cell"><span>ACTIVE PROJECTS</span><strong id="projectCount">—</strong></div>
-        <div class="status-cell"><span>ITEMS REQUESTED</span><strong id="itemCount">—</strong></div>
+        <div class="status-cell"><span>ITEMS STILL NEEDED</span><strong id="itemCount">—</strong></div>
         <div class="status-cell status-online"><span>ARCHIVE LINK</span><strong><i></i> LIVE</strong></div>
         <div class="status-motto">WE FIND. WE PRESERVE. WE PROFIT.</div>
       </div>
@@ -41,7 +42,7 @@
       <div>
         <p class="section-kicker">FIELD OPERATIONS // CURRENT</p>
         <h1>Active Dossiers</h1>
-        <p class="board-subtitle">Every open request is visible here without opening cards or extra menus.</p>
+        <p class="board-subtitle">Track every build target and check off components as the Bureau finds them.</p>
       </div>
       <div class="toolbar-actions">
         <label class="search-wrap" for="search">
@@ -52,15 +53,15 @@
       </div>
     </section>
 
-    <div id="notice" class="notice hidden"></div>
+    <div id="notice" class="notice hidden" role="status"></div>
     <section id="projects" class="project-grid" aria-live="polite"></section>
 
     <section id="empty" class="empty hidden">
       <img class="empty-emblem" src="https://raw.githubusercontent.com/Zykor-/Bureau-of-Antiquities/main/ChatGPT%20Image%20Aug%2026%2C%202026%2C%2009_42_49%20PM%20%282%29.png" alt="Bureau of Antiquities emblem" />
       <p class="section-kicker">NO OPEN DOSSIERS</p>
       <h2>The vault is quiet.</h2>
-      <p>Add the next set or item hunt when someone has a target.</p>
-      <button class="primary" type="button" onclick="document.querySelector('#openAdd').click()">＋ File New Project</button>
+      <p>File the next assembled set or item hunt when someone has a target.</p>
+      <button class="primary" type="button" id="emptyAdd">＋ File New Project</button>
     </section>
 
     <aside class="guild-showcase" aria-label="Bureau guild art">
@@ -69,8 +70,8 @@
       </div>
       <div class="showcase-copy">
         <p class="section-kicker">BUREAU FIELD ARCHIVE</p>
-        <h2>Recovered goods belong in the catalog.</h2>
-        <p>Use the board for set hunts, rare-item requests, crafting targets, or whatever else the Bureau is scavenging next.</p>
+        <h2>Every relic has a paper trail.</h2>
+        <p>Project requirements now come directly from the guild item catalog, so the board stays synchronized with the Bureau archive as sets and components change.</p>
         <div class="showcase-rule"></div>
         <span class="showcase-motto">WE FIND. WE PRESERVE. WE PROFIT.</span>
       </div>
@@ -88,7 +89,7 @@
   </footer>
 
   <dialog id="projectDialog">
-    <form id="projectForm" method="dialog">
+    <form id="projectForm">
       <div class="dialog-head">
         <div>
           <p class="section-kicker">FIELD ENTRY // AUTHORIZED</p>
@@ -96,17 +97,41 @@
         </div>
         <button type="button" class="icon-button" id="closeDialog" aria-label="Close">×</button>
       </div>
+
       <input type="hidden" id="projectId" />
+      <input type="hidden" id="setId" />
+
       <label>Guild Member
         <input id="owner" required maxlength="80" placeholder="Player name" autocomplete="off" />
       </label>
-      <label>Set / Project
-        <input id="title" required maxlength="120" placeholder="e.g. Astral Relic Set" autocomplete="off" />
+
+      <label class="combo-label">Set / Project
+        <div class="combo" id="setCombo">
+          <input id="setSearch" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="setDropdown" required maxlength="120" placeholder="Search assembled items..." autocomplete="off" />
+          <span class="combo-caret" aria-hidden="true">▾</span>
+          <div id="setDropdown" class="combo-menu hidden" role="listbox"></div>
+        </div>
       </label>
-      <label>Items Needed
-        <textarea id="items" rows="7" placeholder="One item per line works best"></textarea>
+
+      <label class="toggle-row" for="q10Set">
+        <span class="toggle-copy">
+          <strong>Q10 Set</strong>
+          <small>Mark this project as a Quality 10 build target.</small>
+        </span>
+        <input id="q10Set" type="checkbox" />
+        <span class="toggle-ui" aria-hidden="true"></span>
       </label>
-      <p class="form-hint">Tip: keep one item per line so the field board stays easy to scan.</p>
+
+      <section id="componentPreview" class="component-preview hidden" aria-live="polite">
+        <div class="preview-head">
+          <span>REQUIRED COMPONENTS</span>
+          <strong id="previewCount">0</strong>
+        </div>
+        <ul id="previewItems" class="preview-items"></ul>
+      </section>
+
+      <p class="form-hint">Components are pulled from Airtable automatically, including components inside prerequisite assembled sets.</p>
+
       <div class="dialog-actions">
         <button type="button" class="secondary" id="cancelDialog">Cancel</button>
         <button type="submit" class="primary">Save to Archive</button>
@@ -120,15 +145,18 @@
       <div class="project-head">
         <div class="project-ident">
           <span class="owner"></span>
-          <h3 class="project-title"></h3>
+          <div class="title-line">
+            <h3 class="project-title"></h3>
+            <span class="q10-badge hidden">Q10</span>
+          </div>
         </div>
         <span class="item-total"></span>
       </div>
-      <div class="loot-label"><span>◆</span> ITEMS NEEDED</div>
+      <div class="loot-label"><span>◆</span> COMPONENT CHECKLIST</div>
       <ul class="items"></ul>
       <div class="card-actions">
-        <button class="small edit">✎ Edit</button>
-        <button class="small complete">✓ Mark Complete</button>
+        <button class="small edit" type="button">✎ Edit</button>
+        <button class="small complete" type="button">✓ Mark Complete</button>
       </div>
     </article>
   </template>
