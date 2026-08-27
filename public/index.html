@@ -6,102 +6,32 @@
   <meta name="theme-color" content="#7d611b" />
   <meta name="description" content="Bureau of Antiquities RUIN guild project tracker." />
   <title>Bureau of Antiquities</title>
+  <link rel="icon" href="https://raw.githubusercontent.com/Zykor-/Bureau-of-Antiquities/main/ChatGPT%20Image%20Aug%2026%2C%202026%2C%2009_42_49%20PM%20%282%29.png" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <header class="hero">
-    <div class="map-grid" aria-hidden="true"></div>
-    <div class="shell hero-shell">
+  <header class="site-header">
+    <div class="shell">
       <nav class="masthead" aria-label="Bureau header">
-        <div class="brand-lockup">
-          <div class="seal" aria-hidden="true">
-            <svg viewBox="0 0 64 64">
-              <circle cx="32" cy="32" r="27" fill="none" stroke="currentColor" stroke-width="2" />
-              <circle cx="32" cy="32" r="21" fill="none" stroke="currentColor" stroke-width="1" opacity=".45" />
-              <path d="M19 39c2-13 23-18 28-8 4 8-5 17-14 12-7-4-2-13 6-11" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
-              <circle cx="43" cy="29" r="1.8" fill="currentColor" />
-            </svg>
-          </div>
+        <a class="brand-lockup" href="#projects-board" aria-label="Bureau of Antiquities home">
+          <img class="brand-emblem" src="https://raw.githubusercontent.com/Zykor-/Bureau-of-Antiquities/main/ChatGPT%20Image%20Aug%2026%2C%202026%2C%2009_42_49%20PM%20%282%29.png" alt="Bureau of Antiquities guild emblem" />
           <div>
             <strong>BUREAU OF ANTIQUITIES</strong>
-            <span>RUIN FIELD OFFICE // BOA</span>
+            <span>RUIN GUILD FIELD OFFICE // B.O.A.</span>
           </div>
-        </div>
-        <div class="clearance">GUILD CLEARANCE <b>ACTIVE</b></div>
+        </a>
+        <button class="primary masthead-action" id="openAdd">＋ File New Project</button>
       </nav>
 
-      <div class="hero-layout">
-        <div class="hero-content">
-          <div class="eyebrow"><span></span> SCAVENGE. CATALOG. COMPLETE.</div>
-          <h1>Bureau <small>of</small> Antiquities</h1>
-          <p class="hero-copy">A shared field board for the Bureau's active hunts. See every item the guild needs at a glance, claim the good finds, and clear finished projects from the docket.</p>
-          <div class="hero-actions">
-            <button class="primary" id="openAdd"><span>＋</span> File New Project</button>
-            <a class="ghost-link" href="#projects-board">View active operations ↓</a>
-          </div>
-        </div>
-
-        <div class="relic-display" aria-hidden="true">
-          <div class="specimen-tag">SPECIMEN 01 // BOA</div>
-          <svg viewBox="0 0 700 540" role="img">
-            <defs>
-              <linearGradient id="snakeGold" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#e1bc54" />
-                <stop offset=".45" stop-color="#a57920" />
-                <stop offset="1" stop-color="#5f4315" />
-              </linearGradient>
-              <linearGradient id="crate" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#6f4f27" />
-                <stop offset="1" stop-color="#372516" />
-              </linearGradient>
-              <linearGradient id="tealGem" x1="0" x2="1">
-                <stop offset="0" stop-color="#72e4d4" />
-                <stop offset="1" stop-color="#168d82" />
-              </linearGradient>
-              <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-                <feDropShadow dx="0" dy="16" stdDeviation="12" flood-opacity=".35" />
-              </filter>
-            </defs>
-
-            <g filter="url(#shadow)">
-              <path d="M152 409h390l-24 93H177z" fill="#21180f" opacity=".6" />
-              <rect x="176" y="325" width="340" height="132" rx="18" fill="url(#crate)" stroke="#d1a13a" stroke-width="7" />
-              <path d="M191 349h310M235 326v131M459 326v131" stroke="#b68129" stroke-width="9" opacity=".7" />
-              <rect x="319" y="360" width="58" height="52" rx="7" fill="#17130e" stroke="#e0b94f" stroke-width="6" />
-              <circle cx="348" cy="386" r="8" fill="#d2a331" />
-
-              <path d="M210 336l72-126 70 126z" fill="#8d6824" stroke="#e2b94c" stroke-width="6" />
-              <polygon points="246,323 282,244 319,323" fill="url(#tealGem)" stroke="#a5fff0" stroke-width="5" />
-              <polygon points="397,334 430,263 465,334" fill="#b94b3b" stroke="#f08d77" stroke-width="5" />
-              <circle cx="477" cy="312" r="30" fill="#d4a43a" stroke="#6d4b17" stroke-width="8" />
-              <path d="M462 312h30M477 297v30" stroke="#725019" stroke-width="5" />
-
-              <path d="M489 337c104-34 135-141 72-206-70-72-211-20-230 84-18 100 84 160 170 113 67-37 64-124 0-151-53-23-115 17-106 69 8 44 61 63 94 37" fill="none" stroke="url(#snakeGold)" stroke-width="54" stroke-linecap="round" />
-              <path d="M511 279c42-12 65-42 59-75-6-32-38-50-67-38-25 11-29 43-11 60" fill="none" stroke="#493213" stroke-width="9" stroke-linecap="round" opacity=".75" />
-              <path d="M566 116c44-2 70 20 67 54-3 31-38 47-69 30-22-12-29-43-13-64" fill="url(#snakeGold)" stroke="#493213" stroke-width="7" />
-              <circle cx="606" cy="153" r="6" fill="#17120c" />
-              <path d="M614 178q16 8 28-2" fill="none" stroke="#21160c" stroke-width="4" stroke-linecap="round" />
-              <circle cx="606" cy="153" r="15" fill="none" stroke="#d7c9a0" stroke-width="3" />
-              <path d="M619 164l23 23" stroke="#d7c9a0" stroke-width="3" />
-
-              <path d="M126 429l66-68 39 68z" fill="#6e5122" stroke="#c08e2c" stroke-width="6" />
-              <path d="M115 409l-20-94 76 41z" fill="#872f27" stroke="#c85b46" stroke-width="5" />
-              <path d="M95 314v112" stroke="#3b2c18" stroke-width="9" />
-              <circle cx="132" cy="446" r="17" fill="#d3a036" />
-              <circle cx="166" cy="453" r="13" fill="#b98327" />
-              <circle cx="503" cy="459" r="15" fill="#c8942d" />
-              <circle cx="535" cy="451" r="11" fill="#e0b449" />
-            </g>
-          </svg>
-          <div class="artifact-stamp">RECOVERED GOODS<br><b>PROPERTY OF B.O.A.</b></div>
-        </div>
+      <div class="banner-frame">
+        <img class="guild-banner" src="https://raw.githubusercontent.com/Zykor-/Bureau-of-Antiquities/main/ChatGPT%20Image%20Aug%2026%2C%202026%2C%2009_42_49%20PM%20%281%29.png" alt="Bureau of Antiquities banner with a monocled boa and recovered treasure" fetchpriority="high" />
       </div>
 
       <div class="status-strip" aria-label="Guild board status">
         <div class="status-cell"><span>ACTIVE PROJECTS</span><strong id="projectCount">—</strong></div>
         <div class="status-cell"><span>ITEMS REQUESTED</span><strong id="itemCount">—</strong></div>
         <div class="status-cell status-online"><span>ARCHIVE LINK</span><strong><i></i> LIVE</strong></div>
-        <div class="status-motto">“If it survived, it belongs in the catalog.”</div>
+        <div class="status-motto">WE FIND. WE PRESERVE. WE PROFIT.</div>
       </div>
     </div>
   </header>
@@ -110,8 +40,8 @@
     <section class="board-heading">
       <div>
         <p class="section-kicker">FIELD OPERATIONS // CURRENT</p>
-        <h2>Active Dossiers</h2>
-        <p class="board-subtitle">Every open request, visible without digging through cards or menus.</p>
+        <h1>Active Dossiers</h1>
+        <p class="board-subtitle">Every open request is visible here without opening cards or extra menus.</p>
       </div>
       <div class="toolbar-actions">
         <label class="search-wrap" for="search">
@@ -124,19 +54,36 @@
 
     <div id="notice" class="notice hidden"></div>
     <section id="projects" class="project-grid" aria-live="polite"></section>
+
     <section id="empty" class="empty hidden">
-      <div class="empty-mark">◇</div>
+      <img class="empty-emblem" src="https://raw.githubusercontent.com/Zykor-/Bureau-of-Antiquities/main/ChatGPT%20Image%20Aug%2026%2C%202026%2C%2009_42_49%20PM%20%282%29.png" alt="Bureau of Antiquities emblem" />
       <p class="section-kicker">NO OPEN DOSSIERS</p>
-      <h3>The vault is quiet.</h3>
+      <h2>The vault is quiet.</h2>
       <p>Add the next set or item hunt when someone has a target.</p>
       <button class="primary" type="button" onclick="document.querySelector('#openAdd').click()">＋ File New Project</button>
     </section>
+
+    <aside class="guild-showcase" aria-label="Bureau guild art">
+      <div class="showcase-image-wrap">
+        <img class="showcase-image" src="https://raw.githubusercontent.com/Zykor-/Bureau-of-Antiquities/main/ChatGPT%20Image%20Aug%2026%2C%202026%2C%2009_42_50%20PM%20%283%29.png" alt="Monocled Bureau of Antiquities boa surrounded by recovered loot" loading="lazy" />
+      </div>
+      <div class="showcase-copy">
+        <p class="section-kicker">BUREAU FIELD ARCHIVE</p>
+        <h2>Recovered goods belong in the catalog.</h2>
+        <p>Use the board for set hunts, rare-item requests, crafting targets, or whatever else the Bureau is scavenging next.</p>
+        <div class="showcase-rule"></div>
+        <span class="showcase-motto">WE FIND. WE PRESERVE. WE PROFIT.</span>
+      </div>
+    </aside>
   </main>
 
   <footer class="site-footer">
-    <div class="shell">
-      <span>BUREAU OF ANTIQUITIES</span>
-      <span>RUIN GUILD FIELD ARCHIVE</span>
+    <div class="shell footer-inner">
+      <div class="footer-brand">
+        <img src="https://raw.githubusercontent.com/Zykor-/Bureau-of-Antiquities/main/ChatGPT%20Image%20Aug%2026%2C%202026%2C%2009_42_49%20PM%20%282%29.png" alt="" />
+        <div><strong>BUREAU OF ANTIQUITIES</strong><span>RUIN GUILD FIELD ARCHIVE</span></div>
+      </div>
+      <span class="footer-motto">B.O.A. // ARCHIVE ONLINE</span>
     </div>
   </footer>
 
