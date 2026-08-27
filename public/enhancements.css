@@ -65,10 +65,10 @@ label.toggle-row>input{position:absolute;opacity:0;width:1px;height:1px;padding:
 .rarity-very-uncommon{color:#58dce2}
 .rarity-rare{color:#6aa9ff}
 .rarity-epic{color:#bf7cff}
-.rarity-artefact{color:#ff9c4a}
-.rarity-legendary{color:#ff625c}
-.rarity-godly{color:#ffe04f;text-shadow:0 0 8px rgba(255,224,79,.16)}
-.rarity-assembled{color:#62d4c6}
+.rarity-artefact{color:#ff625c}
+.rarity-legendary{color:#ff9c4a}
+.rarity-godly{color:#ffffff;text-shadow:0 0 8px rgba(255,255,255,.18)}
+.rarity-assembled{color:#e0b94f}
 
 #projectDialog{width:min(600px,calc(100% - 28px))}
 #projectForm{overflow:visible}
