@@ -11,25 +11,35 @@ function showNotice(message, error = false) {
   noticeEl.textContent = message;
   noticeEl.classList.remove("hidden", "error");
   if (error) noticeEl.classList.add("error");
-  window.setTimeout(() => noticeEl.classList.add("hidden"), 3500);
+  window.setTimeout(() => noticeEl.classList.add("hidden"), 4200);
 }
 
 function itemLines(value) {
   return String(value || "").split(/\r?\n|,/).map(x => x.trim()).filter(Boolean);
 }
 
+function updateStats() {
+  const projectCount = projects.length;
+  const itemCount = projects.reduce((total, project) => total + itemLines(project.items).length, 0);
+  $("#projectCount").textContent = projectCount;
+  $("#itemCount").textContent = itemCount;
+}
+
 function render() {
   const q = $("#search").value.trim().toLowerCase();
   const filtered = projects.filter(p => [p.owner, p.title, p.items].join(" ").toLowerCase().includes(q));
   projectsEl.innerHTML = "";
-  emptyEl.classList.toggle("hidden", filtered.length !== 0);
+  emptyEl.classList.toggle("hidden", filtered.length !== 0 || q.length !== 0);
 
   for (const project of filtered) {
     const node = template.content.cloneNode(true);
+    const items = itemLines(project.items);
+
     node.querySelector(".owner").textContent = project.owner;
     node.querySelector(".project-title").textContent = project.title;
+    node.querySelector(".item-total").textContent = `${items.length} ${items.length === 1 ? "ITEM" : "ITEMS"}`;
+
     const list = node.querySelector(".items");
-    const items = itemLines(project.items);
     if (!items.length) {
       const li = document.createElement("li");
       li.className = "empty-item";
@@ -42,10 +52,13 @@ function render() {
         list.appendChild(li);
       }
     }
+
     node.querySelector(".edit").addEventListener("click", () => openEdit(project));
     node.querySelector(".complete").addEventListener("click", () => completeProject(project));
     projectsEl.appendChild(node);
   }
+
+  updateStats();
 }
 
 async function loadProjects() {
@@ -61,7 +74,7 @@ async function loadProjects() {
 }
 
 function openAdd() {
-  $("#dialogTitle").textContent = "Add Project";
+  $("#dialogTitle").textContent = "File New Project";
   $("#projectId").value = "";
   $("#owner").value = "";
   $("#title").value = "";
@@ -71,12 +84,13 @@ function openAdd() {
 }
 
 function openEdit(project) {
-  $("#dialogTitle").textContent = "Edit Project";
+  $("#dialogTitle").textContent = "Edit Dossier";
   $("#projectId").value = project.id;
   $("#owner").value = project.owner;
   $("#title").value = project.title;
   $("#items").value = project.items;
   dialog.showModal();
+  $("#owner").focus();
 }
 
 async function completeProject(project) {
@@ -91,7 +105,7 @@ async function completeProject(project) {
     if (!res.ok) throw new Error(data.error || "Unable to complete project.");
     projects = projects.filter(p => p.id !== project.id);
     render();
-    showNotice("Project archived as complete.");
+    showNotice("Dossier archived as complete.");
   } catch (err) {
     showNotice(err.message, true);
   }
@@ -100,12 +114,17 @@ async function completeProject(project) {
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const id = $("#projectId").value;
+  const submit = form.querySelector('button[type="submit"]');
+  const originalText = submit.textContent;
   const payload = {
     owner: $("#owner").value,
     title: $("#title").value,
     items: $("#items").value,
   };
+
   try {
+    submit.disabled = true;
+    submit.textContent = "Saving…";
     const res = await fetch(id ? `/api/projects/${id}` : "/api/projects", {
       method: id ? "PATCH" : "POST",
       headers: { "content-type": "application/json" },
@@ -115,9 +134,12 @@ form.addEventListener("submit", async (event) => {
     if (!res.ok) throw new Error(data.error || "Unable to save project.");
     dialog.close();
     await loadProjects();
-    showNotice(id ? "Project updated." : "Project added.");
+    showNotice(id ? "Dossier updated." : "Project filed to the archive.");
   } catch (err) {
     showNotice(err.message, true);
+  } finally {
+    submit.disabled = false;
+    submit.textContent = originalText;
   }
 });
 
