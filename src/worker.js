@@ -214,6 +214,7 @@ async function buildCatalog(env) {
     id: record.id,
     name: record.fields.Name || "Unnamed item",
     rarity: record.fields.Rarity || "",
+    type: "item",
   }]));
 
   const assembledById = new Map(assembledRecords.map((record) => [record.id, {
@@ -224,34 +225,41 @@ async function buildCatalog(env) {
     setComponentIds: recordIds(record.fields["Set Components"]),
   }]));
 
-  const flatten = (assembledId, trail = new Set()) => {
-    if (trail.has(assembledId)) return [];
+  const buildAssembled = (assembledId, trail = new Set()) => {
     const assembled = assembledById.get(assembledId);
-    if (!assembled) return [];
+    if (!assembled) return null;
+    if (trail.has(assembledId)) {
+      return {
+        id: assembled.id,
+        name: assembled.name,
+        location: assembled.location,
+        rarity: "Assembled",
+        type: "set",
+        cycle: true,
+        components: [],
+      };
+    }
 
     const nextTrail = new Set(trail);
     nextTrail.add(assembledId);
-    const found = new Map();
+    const itemComponents = assembled.componentIds.map((id) => itemsById.get(id)).filter(Boolean);
+    const setComponents = assembled.setComponentIds
+      .map((id) => buildAssembled(id, nextTrail))
+      .filter(Boolean);
 
-    for (const id of assembled.componentIds) {
-      const item = itemsById.get(id);
-      if (item) found.set(id, item);
-    }
-
-    for (const childId of assembled.setComponentIds) {
-      for (const item of flatten(childId, nextTrail)) found.set(item.id, item);
-    }
-
-    return [...found.values()];
-  };
-
-  return [...assembledById.values()]
-    .map((assembled) => ({
+    return {
       id: assembled.id,
       name: assembled.name,
       location: assembled.location,
-      components: flatten(assembled.id),
-    }))
+      rarity: "Assembled",
+      type: "set",
+      components: [...itemComponents, ...setComponents],
+    };
+  };
+
+  return [...assembledById.values()]
+    .map((assembled) => buildAssembled(assembled.id))
+    .filter(Boolean)
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 

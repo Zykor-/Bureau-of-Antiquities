@@ -1,4 +1,8 @@
-import { calculateQ10Requirements } from "./q10-math.js";
+import {
+  calculateSetRequirements,
+  collectLeafComponents,
+  evaluateComponent,
+} from "./q10-math.js";
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -113,24 +117,41 @@ function rarityClass(rarity) {
     .replace(/^-|-$/g, "")}`;
 }
 
-function projectComponents(project) {
+function projectAssembled(project) {
   const assembled = catalogById.get(project.assembledItemId);
-  if (assembled) return assembled.components || [];
-  return itemLines(project.legacyItems).map((name) => ({ id: "", name, rarity: "" }));
+  if (assembled) return assembled;
+  return {
+    id: "",
+    name: project.title,
+    type: "set",
+    components: itemLines(project.legacyItems).map((name) => ({ id: "", name, rarity: "", type: "item" })),
+  };
+}
+
+function projectComponents(project) {
+  return projectAssembled(project).components || [];
+}
+
+function projectLeafComponents(project) {
+  return collectLeafComponents(projectAssembled(project));
+}
+
+function componentNames(component) {
+  return [component.name, ...(component.components || []).flatMap(componentNames)].filter(Boolean);
 }
 
 function updateStats() {
   let stillNeeded = 0;
   for (const project of projects) {
     const found = new Set(project.collectedComponentIds || []);
-    stillNeeded += projectComponents(project).filter((component) => !component.id || !found.has(component.id)).length;
+    stillNeeded += projectLeafComponents(project).filter((component) => !found.has(component.id)).length;
   }
   $("#projectCount").textContent = projects.length;
   $("#itemCount").textContent = stillNeeded;
 }
 
 function componentSearchText(project) {
-  return projectComponents(project).map((component) => component.name).join(" ");
+  return projectComponents(project).flatMap(componentNames).join(" ");
 }
 
 function renderQ10Progress(node, requirements) {
@@ -146,25 +167,25 @@ function renderQ10Progress(node, requirements) {
 
   if (requirements.status === "needs-quality") {
     progress.classList.add("status-warning");
-    main.textContent = `Set Q for ${requirements.unknownFoundCount} found component${requirements.unknownFoundCount === 1 ? "" : "s"}`;
-    detail.textContent = "The remaining Q10 requirements will appear once every found component has a quality.";
+    main.textContent = `Set Q for ${requirements.unknownFoundCount} found direct component${requirements.unknownFoundCount === 1 ? "" : "s"}`;
+    detail.textContent = "The remaining Q10 requirements will appear once every found direct component has a quality.";
     return;
   }
 
   if (requirements.status === "impossible") {
     progress.classList.add("status-impossible");
     main.textContent = "Q10 is no longer possible";
-    detail.textContent = "Even Q10 on every missing component would finish below the required 9.50 average.";
+    detail.textContent = "Even Q10 on every missing direct component would finish below the required 9.50 average.";
     return;
   }
 
   if (requirements.status === "achieved" || requirements.status === "missed") {
     const achieved = requirements.status === "achieved";
     progress.classList.add(achieved ? "status-achieved" : "status-impossible");
-    main.textContent = `${achieved ? "Q10 achieved" : "Below Q10"} · Final average Q${requirements.finalAverage.toFixed(2)}`;
+    main.textContent = `${achieved ? "Q10 achieved" : "Below Q10"} · Direct average Q${requirements.finalAverage.toFixed(2)}`;
     detail.textContent = achieved
-      ? "The completed set meets the 9.50 average requirement."
-      : "The completed set does not meet the 9.50 average requirement.";
+      ? "The completed set's direct components meet the 9.50 average requirement."
+      : "The completed set's direct components do not meet the 9.50 average requirement.";
     return;
   }
 
@@ -172,9 +193,9 @@ function renderQ10Progress(node, requirements) {
   progress.classList.add("status-active");
   main.textContent = requiredAverage <= 1
     ? "Any remaining qualities can still reach Q10"
-    : `Missing components need Q${requiredAverage.toFixed(2)} average`;
+    : `Missing direct components need Q${requiredAverage.toFixed(2)} average`;
   progress.querySelector(".q10-progress-detail").textContent =
-    `Each missing component can be as low as Q${requirements.minimumQualityIfOthersTen} if every other missing component is Q10.`;
+    `Each missing direct component can be as low as Q${requirements.minimumQualityIfOthersTen} if every other missing direct component is Q10.`;
 }
 
 function makeQualitySelect(project, component) {
@@ -203,6 +224,154 @@ function makeQualitySelect(project, component) {
   return select;
 }
 
+function makeMinimumQuality(plan, nestedSet = false) {
+  if (!plan || !["in-progress", "impossible"].includes(plan.status)) return null;
+
+  const requirement = document.createElement("span");
+  requirement.className = `minimum-quality${plan.status === "impossible" ? " impossible" : ""}`;
+  requirement.textContent = plan.status === "impossible"
+    ? "NO Q10 PATH"
+    : `${nestedSet ? "TARGET" : "MIN"} Q${plan.minimumQualityIfOthersTen}`;
+  if (plan.status === "in-progress") {
+    requirement.title = "Lowest possible quality if every other missing direct component is Q10";
+  }
+  return requirement;
+}
+
+function targetQualityForNestedSet(parentPlan, evaluation) {
+  if (evaluation.complete) return evaluation.quality;
+  if (parentPlan?.status === "in-progress") {
+    return Math.max(1, Math.min(10, parentPlan.minimumQualityIfOthersTen));
+  }
+  return 10;
+}
+
+function nestedSetStatus(component, evaluation, plan) {
+  if (evaluation.complete) {
+    return `${component.name}'s direct components average Q${evaluation.average.toFixed(2)}, so it counts as one Q${evaluation.quality} component in its parent set.`;
+  }
+  if (!plan) {
+    return "Complete this subset to calculate the single quality it contributes to its parent set.";
+  }
+  if (plan.status === "needs-quality") {
+    return `Set Q for ${plan.unknownFoundCount} found direct component${plan.unknownFoundCount === 1 ? "" : "s"} to calculate this subset.`;
+  }
+  if (plan.status === "impossible") {
+    return `${component.name} can no longer reach Q${plan.targetQuality} with the recorded direct-component qualities.`;
+  }
+  if (plan.status === "in-progress") {
+    return `To make ${component.name} Q${plan.targetQuality}, its missing direct components need Q${plan.requiredRemainingAverage.toFixed(2)} average.`;
+  }
+  return `${component.name} currently resolves to Q${plan.resultQuality} from a Q${plan.finalAverage.toFixed(2)} direct-component average.`;
+}
+
+function renderItemComponent(project, component, parentPlan, trackQ10) {
+  const found = new Set(project.collectedComponentIds || []);
+  const isFound = Boolean(component.id && found.has(component.id));
+  const li = document.createElement("li");
+
+  if (!component.id) {
+    li.className = "legacy-component";
+    const name = document.createElement("span");
+    name.className = "component-name";
+    name.textContent = component.name;
+    li.appendChild(name);
+    return li;
+  }
+
+  li.className = "component-row";
+  if (isFound) li.classList.add("is-found");
+
+  const label = document.createElement("label");
+  label.className = "component-check";
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = isFound;
+  checkbox.setAttribute("aria-label", `Mark ${component.name} as ${isFound ? "not found" : "found"}`);
+  checkbox.addEventListener("change", () => toggleComponent(project, component.id, checkbox.checked));
+
+  const marker = document.createElement("span");
+  marker.className = "check-ui";
+  marker.setAttribute("aria-hidden", "true");
+
+  const name = document.createElement("span");
+  name.className = `component-name ${rarityClass(component.rarity)}`;
+  name.textContent = component.name;
+  if (component.rarity) name.title = component.rarity;
+
+  label.append(checkbox, marker, name);
+  li.appendChild(label);
+
+  if (isFound) {
+    li.appendChild(makeQualitySelect(project, component));
+  } else if (trackQ10) {
+    const requirement = makeMinimumQuality(parentPlan);
+    if (requirement) li.appendChild(requirement);
+  }
+
+  return li;
+}
+
+function renderNestedSet(project, component, parentPlan, trackQ10, depth) {
+  const evaluation = evaluateComponent(component, project.collectedComponentIds, project.componentQualities);
+  const targetQuality = trackQ10 ? targetQualityForNestedSet(parentPlan, evaluation) : null;
+  const plan = targetQuality
+    ? calculateSetRequirements(component, project.collectedComponentIds, project.componentQualities, targetQuality)
+    : null;
+
+  const li = document.createElement("li");
+  li.className = `nested-set-row depth-${Math.min(depth, 4)}`;
+
+  const details = document.createElement("details");
+  details.open = true;
+  const summary = document.createElement("summary");
+  summary.className = "nested-set-summary";
+
+  const identity = document.createElement("span");
+  identity.className = "nested-set-identity";
+  const kind = document.createElement("span");
+  kind.className = "nested-set-kind";
+  kind.textContent = "ASSEMBLED SUBSET";
+  const name = document.createElement("strong");
+  name.className = "nested-set-name";
+  name.textContent = component.name;
+  identity.append(kind, name);
+
+  const result = document.createElement("span");
+  result.className = `nested-set-result${evaluation.complete ? " complete" : ""}`;
+  result.textContent = evaluation.complete
+    ? `Q${evaluation.quality} · AVG ${evaluation.average.toFixed(2)}`
+    : `${evaluation.foundLeafCount}/${evaluation.leafCount} FOUND`;
+
+  summary.append(identity, result);
+  if (trackQ10 && !evaluation.complete) {
+    const requirement = makeMinimumQuality(parentPlan, true);
+    if (requirement) summary.appendChild(requirement);
+  }
+
+  const status = document.createElement("p");
+  status.className = `nested-set-status${evaluation.complete ? " complete" : ""}`;
+  status.textContent = nestedSetStatus(component, evaluation, plan);
+
+  const children = document.createElement("ul");
+  children.className = "items nested-items";
+  for (const child of component.components || []) {
+    children.appendChild(renderProjectComponent(project, child, plan, trackQ10, depth + 1));
+  }
+
+  details.append(summary, status, children);
+  li.appendChild(details);
+  return li;
+}
+
+function renderProjectComponent(project, component, parentPlan, trackQ10, depth = 0) {
+  if (component.type === "set") {
+    return renderNestedSet(project, component, parentPlan, trackQ10, depth);
+  }
+  return renderItemComponent(project, component, parentPlan, trackQ10);
+}
+
 function render() {
   const query = $("#search").value.trim().toLowerCase();
   const filtered = projects.filter((project) => {
@@ -224,11 +393,13 @@ function render() {
 
   for (const project of filtered) {
     const node = template.content.cloneNode(true);
-    const components = projectComponents(project);
+    const assembled = projectAssembled(project);
+    const components = assembled.components || [];
+    const leaves = projectLeafComponents(project);
     const found = new Set(project.collectedComponentIds || []);
-    const foundCount = components.filter((component) => component.id && found.has(component.id)).length;
+    const foundCount = leaves.filter((component) => found.has(component.id)).length;
     const q10Requirements = project.q10
-      ? calculateQ10Requirements(components, project.collectedComponentIds, project.componentQualities)
+      ? calculateSetRequirements(assembled, project.collectedComponentIds, project.componentQualities, 10)
       : null;
 
     node.querySelector(".owner").textContent = project.owner;
@@ -239,10 +410,10 @@ function render() {
     if (q10Requirements) renderQ10Progress(node, q10Requirements);
 
     const total = node.querySelector(".item-total");
-    total.textContent = components.some((component) => component.id)
-      ? `${foundCount}/${components.length} FOUND`
+    total.textContent = leaves.length
+      ? `${foundCount}/${leaves.length} FOUND`
       : `${components.length} ${components.length === 1 ? "ITEM" : "ITEMS"}`;
-    if (components.length && foundCount === components.length) total.classList.add("all-found");
+    if (leaves.length && foundCount === leaves.length) total.classList.add("all-found");
 
     const list = node.querySelector(".items");
     if (!components.length) {
@@ -252,56 +423,7 @@ function render() {
       list.appendChild(li);
     } else {
       for (const component of components) {
-        const li = document.createElement("li");
-        const isFound = Boolean(component.id && found.has(component.id));
-        if (isFound) li.classList.add("is-found");
-
-        if (component.id) {
-          li.classList.add("component-row");
-          const label = document.createElement("label");
-          label.className = "component-check";
-
-          const checkbox = document.createElement("input");
-          checkbox.type = "checkbox";
-          checkbox.checked = isFound;
-          checkbox.setAttribute("aria-label", `Mark ${component.name} as ${isFound ? "not found" : "found"}`);
-          checkbox.addEventListener("change", () => toggleComponent(project, component.id, checkbox.checked));
-
-          const marker = document.createElement("span");
-          marker.className = "check-ui";
-          marker.setAttribute("aria-hidden", "true");
-
-          const name = document.createElement("span");
-          name.className = `component-name ${rarityClass(component.rarity)}`;
-          name.textContent = component.name;
-          if (component.rarity) name.title = component.rarity;
-
-          label.append(checkbox, marker, name);
-          li.appendChild(label);
-
-          if (isFound) {
-            li.appendChild(makeQualitySelect(project, component));
-          } else if (q10Requirements?.status === "in-progress") {
-            const requirement = document.createElement("span");
-            requirement.className = "minimum-quality";
-            requirement.textContent = `MIN Q${q10Requirements.minimumQualityIfOthersTen}`;
-            requirement.title = "Lowest possible quality if every other missing component is Q10";
-            li.appendChild(requirement);
-          } else if (q10Requirements?.status === "impossible") {
-            const requirement = document.createElement("span");
-            requirement.className = "minimum-quality impossible";
-            requirement.textContent = "NO Q10 PATH";
-            li.appendChild(requirement);
-          }
-        } else {
-          li.classList.add("legacy-component");
-          const name = document.createElement("span");
-          name.className = "component-name";
-          name.textContent = component.name;
-          li.appendChild(name);
-        }
-
-        list.appendChild(li);
+        list.appendChild(renderProjectComponent(project, component, q10Requirements, project.q10));
       }
     }
 
@@ -381,8 +503,10 @@ function renderCombo(query = "") {
       const name = document.createElement("strong");
       name.textContent = item.name;
       const meta = document.createElement("span");
-      const count = item.components?.length || 0;
-      meta.textContent = [item.location, `${count} component${count === 1 ? "" : "s"}`].filter(Boolean).join(" · ");
+      const itemCount = collectLeafComponents(item).length;
+      const subsetCount = countNestedSets(item);
+      const componentMeta = `${itemCount} item${itemCount === 1 ? "" : "s"}${subsetCount ? ` + ${subsetCount} subset${subsetCount === 1 ? "" : "s"}` : ""}`;
+      meta.textContent = [item.location, componentMeta].filter(Boolean).join(" · ");
       option.append(name, meta);
 
       option.addEventListener("mousedown", (event) => event.preventDefault());
@@ -393,6 +517,12 @@ function renderCombo(query = "") {
 
   setDropdown.classList.remove("hidden");
   setSearch.setAttribute("aria-expanded", "true");
+}
+
+function countNestedSets(component) {
+  return (component.components || []).reduce((count, child) => (
+    count + (child.type === "set" ? 1 + countNestedSets(child) : 0)
+  ), 0);
 }
 
 function selectCatalogItem(item) {
@@ -406,7 +536,9 @@ function selectCatalogItem(item) {
 function renderPreview(item) {
   previewItems.innerHTML = "";
   const components = item?.components || [];
-  $("#previewCount").textContent = components.length;
+  const itemCount = item ? collectLeafComponents(item).length : 0;
+  const subsetCount = item ? countNestedSets(item) : 0;
+  $("#previewCount").textContent = subsetCount ? `${itemCount} ITEMS · ${subsetCount} SUBSETS` : String(itemCount);
   componentPreview.classList.toggle("hidden", !item);
 
   if (!item) return;
@@ -419,13 +551,35 @@ function renderPreview(item) {
     return;
   }
 
-  for (const component of components) {
-    const li = document.createElement("li");
+  for (const component of components) appendPreviewComponent(previewItems, component);
+}
+
+function appendPreviewComponent(parent, component) {
+  const li = document.createElement("li");
+
+  if (component.type !== "set") {
     li.className = `preview-item ${rarityClass(component.rarity)}`;
     li.textContent = component.name;
     if (component.rarity) li.title = component.rarity;
-    previewItems.appendChild(li);
+    parent.appendChild(li);
+    return;
   }
+
+  li.className = "preview-item preview-set";
+  const head = document.createElement("div");
+  head.className = "preview-set-head";
+  const name = document.createElement("strong");
+  name.textContent = component.name;
+  const kind = document.createElement("span");
+  kind.textContent = "ASSEMBLED SUBSET";
+  head.append(name, kind);
+  li.appendChild(head);
+
+  const children = document.createElement("ul");
+  children.className = "preview-nested";
+  for (const child of component.components || []) appendPreviewComponent(children, child);
+  li.appendChild(children);
+  parent.appendChild(li);
 }
 
 function openAdd() {
