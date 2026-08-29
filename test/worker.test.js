@@ -38,9 +38,9 @@ function installAirtableMock() {
     if (table === "Alt Accounts") {
       return Response.json({
         records: [
-          { id: "recAltOne0000001", fields: { "Alt Account": "Sidekick", "Main Account": "GuildMain", "List Type": "Friendly" } },
-          { id: "recAltTwo0000002", fields: { "Alt Account": "TargetB", "Main Account": "WatchMain", "List Type": "Hunt" } },
-          { id: "recAltThree00003", fields: { "Alt Account": "TargetA", "Main Account": "WatchMain", "List Type": "Hunt" } },
+          { id: "recAltOne0000001", fields: { "Alt Account": "Sidekick", "Main Account": "GuildMain", "List Type": "Guild Alt — Do Not Attack" } },
+          { id: "recAltTwo0000002", fields: { "Alt Account": "TargetB", "Main Account": "WatchMain", "List Type": "Hunt Target — Non-Guild" } },
+          { id: "recAltThree00003", fields: { "Alt Account": "TargetA", "Main Account": "WatchMain", "List Type": "Hunt Target — Non-Guild" } },
         ],
       });
     }
@@ -81,4 +81,3 @@ test("requires POST for the protected endpoint", async () => {
   const response = await worker.fetch(new Request("https://example.test/api/alts"), env);
   assert.equal(response.status, 405);
 });
-

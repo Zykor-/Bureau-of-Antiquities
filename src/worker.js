@@ -92,7 +92,10 @@ function groupAltAccounts(records, listType) {
   const groups = new Map();
 
   for (const record of records) {
-    if (String(record.fields["List Type"] || "").trim().toLowerCase() !== listType) continue;
+    const recordType = String(record.fields["List Type"] || "").trim().toLowerCase();
+    const isFriendly = recordType === "friendly" || recordType.includes("guild alt");
+    const isHunt = recordType === "hunt" || recordType.includes("hunt target");
+    if ((listType === "friendly" && !isFriendly) || (listType === "hunt" && !isHunt)) continue;
 
     const mainAccount = String(record.fields["Main Account"] || "").trim();
     const altAccount = String(record.fields["Alt Account"] || "").trim();
