@@ -324,7 +324,7 @@ function renderNestedSet(project, component, parentPlan, trackQ10, depth) {
   li.className = `nested-set-row depth-${Math.min(depth, 4)}`;
 
   const details = document.createElement("details");
-  details.open = true;
+  details.open = !evaluation.complete;
   const summary = document.createElement("summary");
   summary.className = "nested-set-summary";
 
