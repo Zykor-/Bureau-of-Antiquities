@@ -12,6 +12,13 @@ const setDropdown = $("#setDropdown");
 const setCombo = $("#setCombo");
 const componentPreview = $("#componentPreview");
 const previewItems = $("#previewItems");
+const projectsView = $("#projects-board");
+const intelligenceView = $("#field-intelligence");
+const accessForm = $("#altAccessForm");
+const accessCode = $("#accessCode");
+const accessMessage = $("#accessMessage");
+const intelligenceLocked = $("#intelligenceLocked");
+const intelligenceUnlocked = $("#intelligenceUnlocked");
 
 let projects = [];
 let catalog = [];
@@ -21,6 +28,66 @@ let comboResults = [];
 let comboIndex = -1;
 let noticeTimer = null;
 const saveQueues = new Map();
+
+function setView(view) {
+  const showIntelligence = view === "intelligence";
+  projectsView.classList.toggle("hidden", showIntelligence);
+  intelligenceView.classList.toggle("hidden", !showIntelligence);
+  $("#openAdd").classList.toggle("hidden", showIntelligence);
+
+  for (const link of document.querySelectorAll("[data-view-target]")) {
+    const active = link.dataset.viewTarget === view;
+    link.classList.toggle("active", active);
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  }
+}
+
+function syncViewFromHash() {
+  setView(window.location.hash === "#field-intelligence" ? "intelligence" : "projects");
+}
+
+function renderAccountGroups(container, groups, emptyMessage) {
+  container.innerHTML = "";
+
+  if (!groups.length) {
+    const empty = document.createElement("p");
+    empty.className = "account-empty";
+    empty.textContent = emptyMessage;
+    container.appendChild(empty);
+    return;
+  }
+
+  for (const group of groups) {
+    const row = document.createElement("section");
+    row.className = "account-group";
+
+    const main = document.createElement("h4");
+    main.textContent = group.mainAccount;
+
+    const alts = document.createElement("div");
+    alts.className = "alt-chips";
+    for (const account of group.altAccounts) {
+      const chip = document.createElement("span");
+      chip.className = "alt-chip";
+      chip.textContent = account;
+      alts.appendChild(chip);
+    }
+
+    row.append(main, alts);
+    container.appendChild(row);
+  }
+}
+
+function lockIntelligence() {
+  accessCode.value = "";
+  accessMessage.textContent = "";
+  accessMessage.classList.remove("error");
+  $("#guildAlts").replaceChildren();
+  $("#huntTargets").replaceChildren();
+  intelligenceUnlocked.classList.add("hidden");
+  intelligenceLocked.classList.remove("hidden");
+}
 
 function showNotice(message, error = false) {
   window.clearTimeout(noticeTimer);
@@ -271,6 +338,8 @@ function renderPreview(item) {
 }
 
 function openAdd() {
+  window.location.hash = "projects-board";
+  setView("projects");
   editingProject = null;
   $("#dialogTitle").textContent = "File New Project";
   $("#projectId").value = "";
@@ -397,6 +466,40 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+accessForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const code = accessCode.value.trim();
+  const submit = accessForm.querySelector('button[type="submit"]');
+  const originalText = submit.textContent;
+  accessMessage.textContent = "";
+  accessMessage.classList.remove("error");
+
+  try {
+    submit.disabled = true;
+    submit.textContent = "Verifying…";
+    const data = await fetchJson("/api/alts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+
+    accessCode.value = "";
+    renderAccountGroups($("#guildAlts"), data.guildAlts || [], "No friendly alternate accounts are active.");
+    renderAccountGroups($("#huntTargets"), data.huntTargets || [], "No hunt targets are active.");
+    intelligenceLocked.classList.add("hidden");
+    intelligenceUnlocked.classList.remove("hidden");
+    $("#lockIntelligence").focus();
+  } catch (err) {
+    accessMessage.textContent = err.message;
+    accessMessage.classList.add("error");
+    accessCode.select();
+  } finally {
+    submit.disabled = false;
+    submit.textContent = originalText;
+  }
+});
+
 setSearch.addEventListener("focus", () => renderCombo(setSearch.value));
 setSearch.addEventListener("input", () => {
   setId.value = "";
@@ -430,10 +533,17 @@ $("#closeDialog").addEventListener("click", () => dialog.close());
 $("#cancelDialog").addEventListener("click", () => dialog.close());
 $("#refresh").addEventListener("click", loadAll);
 $("#search").addEventListener("input", render);
+$("#lockIntelligence").addEventListener("click", () => {
+  lockIntelligence();
+  accessCode.focus();
+});
+window.addEventListener("hashchange", syncViewFromHash);
 
 dialog.addEventListener("close", () => {
   closeCombo();
   editingProject = null;
 });
 
+syncViewFromHash();
+lockIntelligence();
 loadAll();

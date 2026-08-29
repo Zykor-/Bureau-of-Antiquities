@@ -8,6 +8,7 @@ Guild project hub for the Bureau of Antiquities in RUIN.
 - Displays player, set/project name, and all needed items without opening a card
 - Lets guild members add and edit projects from the website
 - Marks completed projects as complete in Airtable so they disappear from the active board
+- Provides a codeword-protected Field Intelligence registry for guild alts and hunt targets
 - Includes search and mobile-friendly layout
 
 ## Stack
@@ -30,6 +31,15 @@ Create a base with a table named `Projects` and these fields:
 
 Create an Airtable personal access token with record read/write permission for only this base.
 
+Field Intelligence uses two additional tables:
+
+| Table | Fields |
+| --- | --- |
+| Alt Accounts | Alt Account, Main Account, List Type, Notes, Active |
+| Guild Access | Member, Access Code, Enabled |
+
+Access codes belong only in Airtable. The Worker validates them server-side, returns no access records to the browser, and does not create a login session or persist the entered code.
+
 ## Required Cloudflare secrets/variables
 
 The Worker expects:
@@ -37,7 +47,7 @@ The Worker expects:
 - `AIRTABLE_TOKEN` — encrypted Worker secret
 - `AIRTABLE_BASE_ID` — the Airtable base ID
 
-`AIRTABLE_PROJECTS_TABLE` defaults to `Projects` in `wrangler.jsonc`.
+The Airtable table variables default to `Projects`, `Alt Accounts`, and `Guild Access` in `wrangler.jsonc`.
 
 For local development, create `.dev.vars`:
 

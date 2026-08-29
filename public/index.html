@@ -21,7 +21,13 @@
             <span>RUIN GUILD FIELD OFFICE // B.O.A.</span>
           </div>
         </a>
-        <button class="primary masthead-action" id="openAdd">＋ File New Project</button>
+        <div class="masthead-controls">
+          <div class="section-nav" role="navigation" aria-label="Guild sections">
+            <a class="section-nav-link active" href="#projects-board" data-view-target="projects" aria-current="page">Projects</a>
+            <a class="section-nav-link" href="#field-intelligence" data-view-target="intelligence">Field Intelligence</a>
+          </div>
+          <button class="primary masthead-action" id="openAdd">＋ File New Project</button>
+        </div>
       </nav>
 
       <div class="banner-frame">
@@ -76,6 +82,69 @@
         <span class="showcase-motto">WE FIND. WE PRESERVE. WE PROFIT.</span>
       </div>
     </aside>
+  </main>
+
+  <main class="shell main-shell intelligence-view hidden" id="field-intelligence">
+    <section class="board-heading intelligence-heading">
+      <div>
+        <p class="section-kicker">RESTRICTED ARCHIVE // GUILD ONLY</p>
+        <h1>Field Intelligence</h1>
+        <p class="board-subtitle">Authorized guildmates can review friendly alternate accounts and active hunt targets.</p>
+      </div>
+      <span class="classification-badge">CLASSIFIED</span>
+    </section>
+
+    <section class="access-card" id="intelligenceLocked" aria-labelledby="accessTitle">
+      <div class="access-seal" aria-hidden="true">⌾</div>
+      <div class="access-copy">
+        <p class="section-kicker">IDENTITY CHECK // REQUIRED</p>
+        <h2 id="accessTitle">Unlock the intelligence archive</h2>
+        <p>Enter your personal guild codeword. Access is checked against the private Bureau archive and is never remembered by this device.</p>
+      </div>
+      <form id="altAccessForm" class="access-form">
+        <label for="accessCode">Guild codeword</label>
+        <div class="access-controls">
+          <input id="accessCode" name="code" type="password" maxlength="120" autocomplete="off" autocapitalize="none" spellcheck="false" required />
+          <button class="primary" type="submit">Unlock Archive</button>
+        </div>
+        <p class="access-message" id="accessMessage" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="intelligence-unlocked hidden" id="intelligenceUnlocked" aria-live="polite">
+      <div class="intelligence-toolbar">
+        <div>
+          <p class="section-kicker">ACCESS GRANTED // LIVE AIRTABLE RECORDS</p>
+          <h2>Account Registry</h2>
+        </div>
+        <button class="secondary" id="lockIntelligence" type="button">⌁ Lock Archive</button>
+      </div>
+
+      <div class="intelligence-grid">
+        <article class="intelligence-list friendly-list">
+          <header>
+            <span class="list-signal" aria-hidden="true"></span>
+            <div>
+              <p class="section-kicker">FRIENDLY IDENTITIES</p>
+              <h3>Guild Alts</h3>
+            </div>
+          </header>
+          <div class="account-groups" id="guildAlts"></div>
+        </article>
+
+        <article class="intelligence-list hunt-list">
+          <header>
+            <span class="list-signal" aria-hidden="true"></span>
+            <div>
+              <p class="section-kicker">WATCHLIST IDENTITIES</p>
+              <h3>Hunt Targets</h3>
+            </div>
+          </header>
+          <div class="account-groups" id="huntTargets"></div>
+        </article>
+      </div>
+      <p class="session-warning">Refreshing or leaving this page locks the archive again.</p>
+    </section>
   </main>
 
   <footer class="site-footer">

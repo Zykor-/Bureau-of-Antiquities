@@ -57,6 +57,102 @@ async function listAllRecords(env, tableName, fields = [], filterByFormula = "")
   return records;
 }
 
+async function digestText(value) {
+  const bytes = new TextEncoder().encode(value);
+  return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+}
+
+async function constantTimeTextEqual(left, right) {
+  const [leftDigest, rightDigest] = await Promise.all([digestText(left), digestText(right)]);
+  let difference = 0;
+  for (let index = 0; index < leftDigest.length; index += 1) {
+    difference |= leftDigest[index] ^ rightDigest[index];
+  }
+  return difference === 0;
+}
+
+async function hasGuildAccess(env, code) {
+  const accessTable = env.AIRTABLE_ACCESS_TABLE || "Guild Access";
+  const records = await listAllRecords(
+    env,
+    accessTable,
+    ["Access Code", "Enabled"],
+    "{Enabled}=1",
+  );
+
+  let matched = false;
+  for (const record of records) {
+    const storedCode = String(record.fields["Access Code"] || "");
+    matched = (await constantTimeTextEqual(code, storedCode)) || matched;
+  }
+  return matched;
+}
+
+function groupAltAccounts(records, listType) {
+  const groups = new Map();
+
+  for (const record of records) {
+    if (String(record.fields["List Type"] || "").trim().toLowerCase() !== listType) continue;
+
+    const mainAccount = String(record.fields["Main Account"] || "").trim();
+    const altAccount = String(record.fields["Alt Account"] || "").trim();
+    if (!mainAccount || !altAccount) continue;
+
+    if (!groups.has(mainAccount)) groups.set(mainAccount, new Set());
+    groups.get(mainAccount).add(altAccount);
+  }
+
+  return [...groups]
+    .sort(([left], [right]) => left.localeCompare(right, undefined, { sensitivity: "base" }))
+    .map(([mainAccount, altAccounts]) => ({
+      mainAccount,
+      altAccounts: [...altAccounts].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" })),
+    }));
+}
+
+async function listAltAccounts(request, env) {
+  const error = ensureAirtable(env);
+  if (error) return error;
+
+  const contentLength = Number(request.headers.get("content-length") || 0);
+  if (contentLength > 4096) return json({ error: "Request is too large." }, 413);
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Enter a valid access code." }, 400);
+  }
+
+  const code = String(body?.code || "").trim();
+  if (!code || code.length > 120) return json({ error: "Enter a valid access code." }, 400);
+
+  let authorized;
+  try {
+    authorized = await hasGuildAccess(env, code);
+  } catch {
+    return json({ error: "Unable to verify guild access right now." }, 502);
+  }
+  if (!authorized) return json({ error: "Invalid access code." }, 403);
+
+  let records;
+  try {
+    records = await listAllRecords(
+      env,
+      env.AIRTABLE_ALTS_TABLE || "Alt Accounts",
+      ["Alt Account", "Main Account", "List Type"],
+      "{Active}=1",
+    );
+  } catch {
+    return json({ error: "Unable to load field intelligence right now." }, 502);
+  }
+
+  return json({
+    guildAlts: groupAltAccounts(records, "friendly"),
+    huntTargets: groupAltAccounts(records, "hunt"),
+  });
+}
+
 function recordIds(value) {
   return Array.isArray(value) ? value.filter((id) => typeof id === "string" && /^rec[A-Za-z0-9]{14}$/.test(id)) : [];
 }
@@ -230,6 +326,8 @@ export default {
     if (url.pathname === "/api/catalog" && request.method === "GET") return listCatalog(env);
     if (url.pathname === "/api/projects" && request.method === "GET") return listProjects(env);
     if (url.pathname === "/api/projects" && request.method === "POST") return createProject(request, env);
+    if (url.pathname === "/api/alts" && request.method === "POST") return listAltAccounts(request, env);
+    if (url.pathname === "/api/alts") return json({ error: "Method not allowed." }, 405);
 
     const match = url.pathname.match(/^\/api\/projects\/([^/]+)$/);
     if (match && request.method === "PATCH") return updateProject(request, env, match[1]);

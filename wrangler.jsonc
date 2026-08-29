@@ -13,6 +13,8 @@
   },
   "vars": {
     "AIRTABLE_BASE_ID": "appqZyWZPF5Tp5V3Q",
-    "AIRTABLE_PROJECTS_TABLE": "Projects"
+    "AIRTABLE_PROJECTS_TABLE": "Projects",
+    "AIRTABLE_ALTS_TABLE": "Alt Accounts",
+    "AIRTABLE_ACCESS_TABLE": "Guild Access"
   }
 }
