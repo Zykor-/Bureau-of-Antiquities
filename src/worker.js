@@ -160,6 +160,41 @@ function recordIds(value) {
   return Array.isArray(value) ? value.filter((id) => typeof id === "string" && /^rec[A-Za-z0-9]{14}$/.test(id)) : [];
 }
 
+function parseComponentQualities(value) {
+  let source = value;
+  if (typeof source === "string") {
+    try {
+      source = JSON.parse(source);
+    } catch {
+      return {};
+    }
+  }
+  if (!source || typeof source !== "object" || Array.isArray(source)) return {};
+
+  const qualities = {};
+  for (const [componentId, rawQuality] of Object.entries(source).slice(0, 500)) {
+    const quality = Number(rawQuality);
+    if (/^rec[A-Za-z0-9]{14}$/.test(componentId) && Number.isInteger(quality) && quality >= 1 && quality <= 10) {
+      qualities[componentId] = quality;
+    }
+  }
+  return qualities;
+}
+
+function validateComponentQualities(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const entries = Object.entries(value);
+  if (entries.length > 500) return null;
+
+  for (const [componentId, rawQuality] of entries) {
+    const quality = Number(rawQuality);
+    if (!/^rec[A-Za-z0-9]{14}$/.test(componentId) || !Number.isInteger(quality) || quality < 1 || quality > 10) {
+      return null;
+    }
+  }
+  return parseComponentQualities(value);
+}
+
 async function buildCatalog(env) {
   const itemsTable = env.AIRTABLE_ITEMS_TABLE || "Items";
   const assembledTable = env.AIRTABLE_ASSEMBLED_TABLE || "Assembled Items";
@@ -240,7 +275,7 @@ async function listProjects(env) {
   url.searchParams.set("filterByFormula", "NOT({Completed})");
   url.searchParams.set("sort[0][field]", "Owner");
   url.searchParams.set("sort[0][direction]", "asc");
-  for (const field of ["Owner", "Project", "Items", "Completed", "Q10 Set", "Collected Components", "Assembled Item"]) {
+  for (const field of ["Owner", "Project", "Items", "Completed", "Q10 Set", "Collected Components", "Component Qualities", "Assembled Item"]) {
     url.searchParams.append("fields[]", field);
   }
 
@@ -256,6 +291,7 @@ async function listProjects(env) {
     q10: Boolean(record.fields["Q10 Set"]),
     assembledItemId: recordIds(record.fields["Assembled Item"])[0] || "",
     collectedComponentIds: recordIds(record.fields["Collected Components"]),
+    componentQualities: parseComponentQualities(record.fields["Component Qualities"]),
   })));
 }
 
@@ -278,6 +314,7 @@ async function createProject(request, env) {
     "Q10 Set": Boolean(body.q10),
     "Assembled Item": [assembledItemId],
     "Collected Components": [],
+    "Component Qualities": "{}",
   };
 
   const res = await fetch(tableUrl(env, env.AIRTABLE_PROJECTS_TABLE || "Projects"), {
@@ -311,6 +348,12 @@ async function updateProject(request, env, id) {
   if ("collectedComponentIds" in body) {
     if (!Array.isArray(body.collectedComponentIds)) return json({ error: "Collected components must be a list." }, 400);
     fields["Collected Components"] = recordIds(body.collectedComponentIds);
+  }
+
+  if ("componentQualities" in body) {
+    const componentQualities = validateComponentQualities(body.componentQualities);
+    if (!componentQualities) return json({ error: "Component qualities must use whole numbers from 1 to 10." }, 400);
+    fields["Component Qualities"] = JSON.stringify(componentQualities);
   }
 
   const res = await fetch(tableUrl(env, env.AIRTABLE_PROJECTS_TABLE || "Projects", id), {

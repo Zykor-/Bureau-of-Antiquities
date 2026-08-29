@@ -1,3 +1,5 @@
+import { calculateQ10Requirements } from "./q10-math.js";
+
 const $ = (selector) => document.querySelector(selector);
 
 const projectsEl = $("#projects");
@@ -131,6 +133,76 @@ function componentSearchText(project) {
   return projectComponents(project).map((component) => component.name).join(" ");
 }
 
+function renderQ10Progress(node, requirements) {
+  const progress = node.querySelector(".q10-progress");
+  const main = progress.querySelector(".q10-progress-main");
+  const detail = progress.querySelector(".q10-progress-detail");
+  progress.className = "q10-progress";
+
+  if (requirements.status === "empty") {
+    progress.classList.add("hidden");
+    return;
+  }
+
+  if (requirements.status === "needs-quality") {
+    progress.classList.add("status-warning");
+    main.textContent = `Set Q for ${requirements.unknownFoundCount} found component${requirements.unknownFoundCount === 1 ? "" : "s"}`;
+    detail.textContent = "The remaining Q10 requirements will appear once every found component has a quality.";
+    return;
+  }
+
+  if (requirements.status === "impossible") {
+    progress.classList.add("status-impossible");
+    main.textContent = "Q10 is no longer possible";
+    detail.textContent = "Even Q10 on every missing component would finish below the required 9.50 average.";
+    return;
+  }
+
+  if (requirements.status === "achieved" || requirements.status === "missed") {
+    const achieved = requirements.status === "achieved";
+    progress.classList.add(achieved ? "status-achieved" : "status-impossible");
+    main.textContent = `${achieved ? "Q10 achieved" : "Below Q10"} · Final average Q${requirements.finalAverage.toFixed(2)}`;
+    detail.textContent = achieved
+      ? "The completed set meets the 9.50 average requirement."
+      : "The completed set does not meet the 9.50 average requirement.";
+    return;
+  }
+
+  const requiredAverage = requirements.requiredRemainingAverage;
+  progress.classList.add("status-active");
+  main.textContent = requiredAverage <= 1
+    ? "Any remaining qualities can still reach Q10"
+    : `Missing components need Q${requiredAverage.toFixed(2)} average`;
+  progress.querySelector(".q10-progress-detail").textContent =
+    `Each missing component can be as low as Q${requirements.minimumQualityIfOthersTen} if every other missing component is Q10.`;
+}
+
+function makeQualitySelect(project, component) {
+  const select = document.createElement("select");
+  select.className = "quality-select";
+  select.setAttribute("aria-label", `Quality for ${component.name}`);
+
+  const unknown = document.createElement("option");
+  unknown.value = "";
+  unknown.textContent = "Q?";
+  unknown.disabled = true;
+  select.appendChild(unknown);
+
+  for (let quality = 1; quality <= 10; quality += 1) {
+    const option = document.createElement("option");
+    option.value = String(quality);
+    option.textContent = `Q${quality}`;
+    select.appendChild(option);
+  }
+
+  const currentQuality = Number(project.componentQualities?.[component.id]);
+  select.value = Number.isInteger(currentQuality) && currentQuality >= 1 && currentQuality <= 10
+    ? String(currentQuality)
+    : "";
+  select.addEventListener("change", () => setComponentQuality(project, component.id, Number(select.value)));
+  return select;
+}
+
 function render() {
   const query = $("#search").value.trim().toLowerCase();
   const filtered = projects.filter((project) => {
@@ -155,12 +227,16 @@ function render() {
     const components = projectComponents(project);
     const found = new Set(project.collectedComponentIds || []);
     const foundCount = components.filter((component) => component.id && found.has(component.id)).length;
+    const q10Requirements = project.q10
+      ? calculateQ10Requirements(components, project.collectedComponentIds, project.componentQualities)
+      : null;
 
     node.querySelector(".owner").textContent = project.owner;
     node.querySelector(".project-title").textContent = project.title;
 
     const q10Badge = node.querySelector(".q10-badge");
     q10Badge.classList.toggle("hidden", !project.q10);
+    if (q10Requirements) renderQ10Progress(node, q10Requirements);
 
     const total = node.querySelector(".item-total");
     total.textContent = components.some((component) => component.id)
@@ -202,6 +278,21 @@ function render() {
 
           label.append(checkbox, marker, name);
           li.appendChild(label);
+
+          if (isFound) {
+            li.appendChild(makeQualitySelect(project, component));
+          } else if (q10Requirements?.status === "in-progress") {
+            const requirement = document.createElement("span");
+            requirement.className = "minimum-quality";
+            requirement.textContent = `MIN Q${q10Requirements.minimumQualityIfOthersTen}`;
+            requirement.title = "Lowest possible quality if every other missing component is Q10";
+            li.appendChild(requirement);
+          } else if (q10Requirements?.status === "impossible") {
+            const requirement = document.createElement("span");
+            requirement.className = "minimum-quality impossible";
+            requirement.textContent = "NO Q10 PATH";
+            li.appendChild(requirement);
+          }
         } else {
           li.classList.add("legacy-component");
           const name = document.createElement("span");
@@ -398,7 +489,10 @@ function queueCollectedSave(project) {
       await fetchJson(`/api/projects/${project.id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ collectedComponentIds: project.collectedComponentIds || [] }),
+        body: JSON.stringify({
+          collectedComponentIds: project.collectedComponentIds || [],
+          componentQualities: project.componentQualities || {},
+        }),
       });
     })
     .catch(async (err) => {
@@ -414,9 +508,25 @@ function queueCollectedSave(project) {
 
 function toggleComponent(project, componentId, checked) {
   const found = new Set(project.collectedComponentIds || []);
-  if (checked) found.add(componentId);
-  else found.delete(componentId);
+  project.componentQualities = { ...(project.componentQualities || {}) };
+  if (checked) {
+    found.add(componentId);
+    if (!project.componentQualities[componentId]) project.componentQualities[componentId] = 10;
+  } else {
+    found.delete(componentId);
+    delete project.componentQualities[componentId];
+  }
   project.collectedComponentIds = [...found];
+  render();
+  queueCollectedSave(project);
+}
+
+function setComponentQuality(project, componentId, quality) {
+  if (!Number.isInteger(quality) || quality < 1 || quality > 10) return;
+  const found = new Set(project.collectedComponentIds || []);
+  found.add(componentId);
+  project.collectedComponentIds = [...found];
+  project.componentQualities = { ...(project.componentQualities || {}), [componentId]: quality };
   render();
   queueCollectedSave(project);
 }
@@ -445,6 +555,7 @@ form.addEventListener("submit", async (event) => {
 
   if (id && editingProject && editingProject.assembledItemId !== selected.id) {
     payload.collectedComponentIds = [];
+    payload.componentQualities = {};
   }
 
   try {

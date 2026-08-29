@@ -8,6 +8,7 @@ Guild project hub for the Bureau of Antiquities in RUIN.
 - Displays player, set/project name, and all needed items without opening a card
 - Lets guild members add and edit projects from the website
 - Marks completed projects as complete in Airtable so they disappear from the active board
+- Records Q1–Q10 for found components and calculates the live 9.50-average Q10 requirement
 - Provides a codeword-protected Field Intelligence registry for guild alts and hunt targets
 - Includes search and mobile-friendly layout
 
@@ -28,6 +29,10 @@ Create a base with a table named `Projects` and these fields:
 | Project | Single line text |
 | Items | Long text |
 | Completed | Checkbox |
+| Q10 Set | Checkbox |
+| Assembled Item | Link to Assembled Items |
+| Collected Components | Link to Items |
+| Component Qualities | Long text (website-managed JSON) |
 
 Create an Airtable personal access token with record read/write permission for only this base.
 
