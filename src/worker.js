@@ -113,30 +113,56 @@ function groupAltAccounts(records, listType) {
     }));
 }
 
-async function listAltAccounts(request, env) {
+async function authorizeIntelligence(request, env, maxBytes = 4096) {
   const error = ensureAirtable(env);
-  if (error) return error;
+  if (error) return { error };
 
   const contentLength = Number(request.headers.get("content-length") || 0);
-  if (contentLength > 4096) return json({ error: "Request is too large." }, 413);
+  if (contentLength > maxBytes) return { error: json({ error: "Request is too large." }, 413) };
 
   let body;
   try {
-    body = await request.json();
+    // Bound the actual stream as well: Content-Length can be absent or inaccurate.
+    const reader = request.body?.getReader();
+    const chunks = [];
+    let size = 0;
+    if (reader) {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          size += value.byteLength;
+          if (size > maxBytes) {
+            await reader.cancel();
+            return { error: json({ error: "Request is too large." }, 413) };
+          }
+          chunks.push(value);
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    }
+    body = JSON.parse(await new Blob(chunks).text());
   } catch {
-    return json({ error: "Enter a valid access code." }, 400);
+    return { error: json({ error: "Enter a valid access code." }, 400) };
   }
 
-  const code = String(body?.code || "").trim();
-  if (!code || code.length > 120) return json({ error: "Enter a valid access code." }, 400);
+  const code = typeof body?.code === "string" ? body.code.trim() : "";
+  if (!code || code.length > 120) return { error: json({ error: "Enter a valid access code." }, 400) };
 
   let authorized;
   try {
     authorized = await hasGuildAccess(env, code);
   } catch {
-    return json({ error: "Unable to verify guild access right now." }, 502);
+    return { error: json({ error: "Unable to verify guild access right now." }, 502) };
   }
-  if (!authorized) return json({ error: "Invalid access code." }, 403);
+  if (!authorized) return { error: json({ error: "Invalid access code." }, 403) };
+  return { body };
+}
+
+async function listAltAccounts(request, env) {
+  const { error } = await authorizeIntelligence(request, env);
+  if (error) return error;
 
   let records;
   try {
@@ -154,6 +180,80 @@ async function listAltAccounts(request, env) {
     guildAlts: groupAltAccounts(records, "friendly"),
     huntTargets: groupAltAccounts(records, "hunt"),
   });
+}
+
+const altListTypes = new Map([
+  ["friendly", "Guild Alt — Do Not Attack"],
+  ["hunt", "Hunt Target — Non-Guild"],
+]);
+const accountKey = (value) => String(value || "").trim().toLowerCase();
+const validUsername = (value) => typeof value === "string"
+  && value.trim().length > 0 && value.trim().length <= 120
+  && !/[\u0000-\u001f\u007f,]/.test(value);
+
+async function submitAltAccounts(request, env) {
+  const { body, error } = await authorizeIntelligence(request, env, 16384);
+  if (error) return error;
+
+  if (!["existing", "new"].includes(body.mode)) return json({ error: "Choose an existing or new main account." }, 400);
+  if (!validUsername(body.mainAccount)) return json({ error: "Enter a main username of 1–120 characters." }, 400);
+  if (!Array.isArray(body.altAccounts) || !body.altAccounts.length || body.altAccounts.length > 10
+      || !body.altAccounts.every(validUsername)) {
+    return json({ error: "Enter 1–10 alt usernames, each 1–120 characters, separated by commas or new lines." }, 400);
+  }
+  if (!altListTypes.has(body.listType)) return json({ error: "Choose Guild Alts or Hunt Targets." }, 400);
+  if (body.notes !== undefined && (typeof body.notes !== "string" || body.notes.length > 2000)) {
+    return json({ error: "Notes must be 2,000 characters or fewer." }, 400);
+  }
+  const mainKey = accountKey(body.mainAccount);
+  if (body.altAccounts.some((alt) => accountKey(alt) === mainKey)) {
+    return json({ error: "An alt username must differ from the main username." }, 400);
+  }
+
+  const table = env.AIRTABLE_ALTS_TABLE || "Alt Accounts";
+  let records;
+  try {
+    // Include inactive records so hidden pairs are not recreated or reactivated.
+    records = await listAllRecords(env, table, ["Main Account", "Alt Account", "Active"]);
+  } catch {
+    return json({ error: "Unable to check existing accounts. Nothing was saved; please try again." }, 502);
+  }
+  const mainRecords = records.filter((record) => accountKey(record.fields["Main Account"]) === mainKey);
+  if (body.mode === "existing" && !mainRecords.length) {
+    return json({ error: "That main account is no longer known. Choose New main account to add it." }, 409);
+  }
+  const mainAccount = mainRecords.length
+    ? String(mainRecords[0].fields["Main Account"]).trim() : body.mainAccount.trim();
+  const existing = new Set(mainRecords.map((record) => accountKey(record.fields["Alt Account"])));
+  const inactive = new Set(mainRecords.filter((record) => !record.fields.Active)
+    .map((record) => accountKey(record.fields["Alt Account"])));
+  const uniqueAlts = [...new Map(body.altAccounts.map((alt) => [accountKey(alt), alt.trim()])).values()];
+  const additions = uniqueAlts.filter((alt) => !existing.has(accountKey(alt)));
+  const result = {
+    created: additions.length,
+    skipped: body.altAccounts.length - additions.length,
+    inactiveSkipped: uniqueAlts.filter((alt) => inactive.has(accountKey(alt))).length,
+  };
+  if (!additions.length) return json(result);
+
+  try {
+    const res = await fetch(tableUrl(env, table), {
+      method: "POST",
+      headers: airtableHeaders(env),
+      body: JSON.stringify({ records: additions.map((alt) => ({ fields: {
+        "Main Account": mainAccount,
+        "Alt Account": alt,
+        "List Type": altListTypes.get(body.listType),
+        Active: true,
+        ...(body.notes?.trim() ? { Notes: body.notes.trim() } : {}),
+      } })) }),
+    });
+    if (!res.ok) return json({ error: "Unable to save intelligence. Please try again; existing pairs will be skipped." }, 502);
+    // Return only counts, never Airtable records, access data, or upstream errors.
+    return json(result, 201);
+  } catch {
+    return json({ error: "Could not confirm the save. Please retry; existing pairs will be skipped." }, 502);
+  }
 }
 
 function recordIds(value) {
@@ -382,6 +482,8 @@ export default {
     if (url.pathname === "/api/projects" && request.method === "POST") return createProject(request, env);
     if (url.pathname === "/api/alts" && request.method === "POST") return listAltAccounts(request, env);
     if (url.pathname === "/api/alts") return json({ error: "Method not allowed." }, 405);
+    if (url.pathname === "/api/alts/submit" && request.method === "POST") return submitAltAccounts(request, env);
+    if (url.pathname === "/api/alts/submit") return json({ error: "Method not allowed." }, 405);
 
     const match = url.pathname.match(/^\/api\/projects\/([^/]+)$/);
     if (match && request.method === "PATCH") return updateProject(request, env, match[1]);

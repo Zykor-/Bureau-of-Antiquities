@@ -11,6 +11,7 @@ Guild project hub for the Bureau of Antiquities in RUIN.
 - Records Q1–Q10 for found components and calculates the live 9.50-average Q10 requirement
 - Resolves each nested assembled subset from its direct components, then counts that subset's resulting quality once in its parent set
 - Provides a codeword-protected Field Intelligence registry for guild alts and hunt targets
+- Lets authorized guildmates submit up to 10 alts for a known or new main account, with a list type and optional notes
 - Includes search and mobile-friendly layout
 
 ## Stack
@@ -44,7 +45,11 @@ Field Intelligence uses two additional tables:
 | Alt Accounts | Alt Account, Main Account, List Type, Notes, Active |
 | Guild Access | Member, Access Code, Enabled |
 
-Access codes belong only in Airtable. The Worker validates them server-side, returns no access records to the browser, and does not create a login session or persist the entered code.
+Access records belong only in Airtable. The Worker validates the entered code server-side on every read and write and returns no access records to the browser. The entered code is retained only in page memory while unlocked, never in browser storage or a cookie; locking, navigating away, or refreshing clears it.
+
+`POST /api/alts` keeps the existing read-only response. `POST /api/alts/submit` accepts `code`, `mode` (`existing` or `new`), `mainAccount`, `altAccounts` (1–10 usernames), `listType` (`friendly` or `hunt`), and optional `notes`. Writes use the existing `Alt Accounts` fields with `Active` checked and the existing list choices. Usernames are trimmed and limited to 120 characters; notes are limited to 2,000. Responses contain counts only, and upstream errors are not exposed.
+
+Before saving, the Worker reads all account rows, including inactive ones, and skips main/alt pairs case-insensitively as well as duplicates within the submission. Existing main spelling is reused. Existing rows, notes, list types and inactive flags are never changed. Duplicate prevention is best-effort: simultaneous submissions can race because the current Airtable schema has no unique constraint. Ordinary retries skip pairs already saved. The form refreshes the registry after saving, preserves input on failure, and reports inactive duplicates without reactivating them.
 
 ## Required Cloudflare secrets/variables
 

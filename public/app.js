@@ -25,6 +25,11 @@ const accessCode = $("#accessCode");
 const accessMessage = $("#accessMessage");
 const intelligenceLocked = $("#intelligenceLocked");
 const intelligenceUnlocked = $("#intelligenceUnlocked");
+const altSubmissionForm = $("#altSubmissionForm");
+const altSubmissionMessage = $("#altSubmissionMessage");
+let intelligenceCode = "";
+let intelligenceGeneration = 0;
+let knownMainTypes = new Map();
 
 let projects = [];
 let catalog = [];
@@ -37,6 +42,7 @@ const saveQueues = new Map();
 
 function setView(view) {
   const showIntelligence = view === "intelligence";
+  if (!showIntelligence) lockIntelligence();
   projectsView.classList.toggle("hidden", showIntelligence);
   intelligenceView.classList.toggle("hidden", !showIntelligence);
   $("#openAdd").classList.toggle("hidden", showIntelligence);
@@ -86,6 +92,17 @@ function renderAccountGroups(container, groups, emptyMessage) {
 }
 
 function lockIntelligence() {
+  intelligenceGeneration += 1;
+  intelligenceCode = "";
+  knownMainTypes.clear();
+  altSubmissionForm.reset();
+  $("#altKnownMain").replaceChildren(new Option("Select a main account…", ""));
+  $("#altEntry").open = false;
+  $("#altSubmissionFields").disabled = false;
+  $("#submitAltIntelligence").textContent = "Save Intelligence";
+  altSubmissionMessage.textContent = "";
+  altSubmissionMessage.classList.remove("error");
+  syncAltMainMode();
   accessCode.value = "";
   accessMessage.textContent = "";
   accessMessage.classList.remove("error");
@@ -93,6 +110,38 @@ function lockIntelligence() {
   $("#huntTargets").replaceChildren();
   intelligenceUnlocked.classList.add("hidden");
   intelligenceLocked.classList.remove("hidden");
+}
+
+function syncAltMainMode() {
+  const isNew = $("#altMainMode").value === "new";
+  $("#knownMainLabel").classList.toggle("hidden", isNew);
+  $("#newMainLabel").classList.toggle("hidden", !isNew);
+  $("#altKnownMain").disabled = isNew;
+  $("#altKnownMain").required = !isNew;
+  $("#altNewMain").disabled = !isNew;
+  $("#altNewMain").required = isNew;
+}
+
+function renderIntelligence(data) {
+  renderAccountGroups($("#guildAlts"), data.guildAlts || [], "No friendly alternate accounts are active.");
+  renderAccountGroups($("#huntTargets"), data.huntTargets || [], "No hunt targets are active.");
+  const selection = $("#altKnownMain").value;
+  knownMainTypes.clear();
+  for (const [type, groups] of [["friendly", data.guildAlts || []], ["hunt", data.huntTargets || []]]) {
+    for (const { mainAccount } of groups) {
+      const key = mainAccount.toLowerCase();
+      const known = knownMainTypes.get(key);
+      if (known) known.types.add(type);
+      else knownMainTypes.set(key, { name: mainAccount, types: new Set([type]) });
+    }
+  }
+  const options = [...knownMainTypes.values()]
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
+    .map(({ name }) => new Option(name, name));
+  $("#altKnownMain").replaceChildren(new Option("Select a main account…", ""), ...options);
+  $("#altKnownMain").value = selection;
+  if (!options.length) $("#altMainMode").value = "new";
+  syncAltMainMode();
 }
 
 function showNotice(message, error = false) {
@@ -734,6 +783,7 @@ form.addEventListener("submit", async (event) => {
 accessForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
+  const generation = ++intelligenceGeneration;
   const code = accessCode.value.trim();
   const submit = accessForm.querySelector('button[type="submit"]');
   const originalText = submit.textContent;
@@ -749,19 +799,97 @@ accessForm.addEventListener("submit", async (event) => {
       body: JSON.stringify({ code }),
     });
 
+    if (generation !== intelligenceGeneration) return;
+    intelligenceCode = code;
     accessCode.value = "";
-    renderAccountGroups($("#guildAlts"), data.guildAlts || [], "No friendly alternate accounts are active.");
-    renderAccountGroups($("#huntTargets"), data.huntTargets || [], "No hunt targets are active.");
+    renderIntelligence(data);
     intelligenceLocked.classList.add("hidden");
     intelligenceUnlocked.classList.remove("hidden");
     $("#lockIntelligence").focus();
   } catch (err) {
+    if (generation !== intelligenceGeneration) return;
     accessMessage.textContent = err.message;
     accessMessage.classList.add("error");
     accessCode.select();
   } finally {
     submit.disabled = false;
     submit.textContent = originalText;
+  }
+});
+
+$("#altMainMode").addEventListener("change", () => {
+  syncAltMainMode();
+  $("#altListType").value = "";
+});
+$("#altKnownMain").addEventListener("change", () => {
+  const known = knownMainTypes.get($("#altKnownMain").value.toLowerCase());
+  $("#altListType").value = known?.types.size === 1 ? [...known.types][0] : "";
+});
+altSubmissionForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!intelligenceCode || $("#altSubmissionFields").disabled) return;
+  const generation = intelligenceGeneration;
+  const altAccounts = itemLines($("#altUsernames").value);
+  altSubmissionMessage.classList.remove("error");
+  if (!altAccounts.length || altAccounts.length > 10) {
+    altSubmissionMessage.textContent = "Enter 1–10 alt usernames, separated by commas or new lines.";
+    altSubmissionMessage.classList.add("error");
+    return;
+  }
+  const body = {
+    code: intelligenceCode,
+    mode: $("#altMainMode").value,
+    mainAccount: $("#altMainMode").value === "new" ? $("#altNewMain").value : $("#altKnownMain").value,
+    altAccounts,
+    listType: $("#altListType").value,
+    notes: $("#altNotes").value,
+  };
+  $("#altSubmissionFields").disabled = true;
+  $("#submitAltIntelligence").textContent = "Saving…";
+  altSubmissionMessage.textContent = "";
+  try {
+    const response = await fetch("/api/alts/submit", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (generation !== intelligenceGeneration) return;
+    if (response.status === 403) {
+      lockIntelligence();
+      accessMessage.textContent = "Access is no longer valid. Enter an enabled guild codeword to continue.";
+      accessMessage.classList.add("error");
+      accessCode.focus();
+      return;
+    }
+    const result = await response.json();
+    if (generation !== intelligenceGeneration) return;
+    if (!response.ok) throw new Error(result.error || "Unable to save intelligence.");
+    const message = `${result.created} alt${result.created === 1 ? "" : "s"} added. ${result.skipped} duplicate${result.skipped === 1 ? "" : "s"} skipped.`
+      + (result.inactiveSkipped ? " Some pairs already exist as inactive records and remain hidden." : "");
+    $("#altUsernames").value = "";
+    $("#altNotes").value = "";
+    altSubmissionMessage.textContent = message;
+    try {
+      const data = await fetchJson("/api/alts", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code: intelligenceCode }),
+      });
+      if (generation !== intelligenceGeneration) return;
+      renderIntelligence(data);
+    } catch {
+      if (generation !== intelligenceGeneration) return;
+      altSubmissionMessage.textContent = `${message} The registry could not refresh. Lock and unlock the archive to reload it.`;
+    }
+  } catch (err) {
+    if (generation !== intelligenceGeneration) return;
+    altSubmissionMessage.textContent = err.message;
+    altSubmissionMessage.classList.add("error");
+  } finally {
+    if (generation === intelligenceGeneration) {
+      $("#altSubmissionFields").disabled = false;
+      $("#submitAltIntelligence").textContent = "Save Intelligence";
+    }
   }
 });
 
@@ -803,6 +931,7 @@ $("#lockIntelligence").addEventListener("click", () => {
   accessCode.focus();
 });
 window.addEventListener("hashchange", syncViewFromHash);
+window.addEventListener("pagehide", lockIntelligence);
 
 dialog.addEventListener("close", () => {
   closeCombo();

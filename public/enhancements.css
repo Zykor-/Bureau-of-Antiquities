@@ -154,6 +154,19 @@ label.toggle-row>input{position:absolute;opacity:0;width:1px;height:1px;padding:
 .hunt-list .alt-chip{border-color:#714235;background:#321d18;color:#ffd1c8}
 .account-empty{margin:0;padding:25px 18px;background:#1b180f;color:#8e8367;font-size:.82rem;text-align:center}
 .session-warning{margin:16px 2px 0;color:#857b62;font-size:.74rem;text-align:right}
+.intelligence-entry{margin-top:22px;border:1px solid #705824;border-radius:15px;background:#201c12;overflow:hidden}
+.intelligence-entry>summary{padding:18px;color:#eadcb9;font-weight:850;cursor:pointer}
+.intelligence-entry>summary:focus-visible{outline:2px solid #d8ad38;outline-offset:-4px}
+.intelligence-entry form{padding:0 18px 18px}
+.intelligence-entry fieldset{min-width:0;margin:0;padding:0;border:0}
+.intelligence-entry legend{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.alt-entry-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:6px 0 18px}
+.alt-entry-grid label{display:grid;gap:8px;min-width:0;margin:0;color:#d7caa7;font-size:.875rem;letter-spacing:normal}
+.alt-entry-grid input,.alt-entry-grid textarea,.alt-entry-grid select{width:100%;min-width:0;background:#15130d;border:1px solid #50421f;border-radius:9px;color:#fff4d5;padding:11px 12px;font:inherit;font-size:1rem}
+.alt-entry-grid select:focus{outline:2px solid #b78b20;outline-offset:2px}
+.alt-entry-wide{grid-column:1/-1}
+.alt-entry-hint{color:#b4a789;font-size:.875rem;font-weight:400}
+.intelligence-entry .access-message{font-size:.875rem;line-height:1.5;overflow-wrap:anywhere}
 
 @media(max-width:820px){
   .masthead{align-items:flex-start;flex-direction:column}
@@ -175,6 +188,7 @@ label.toggle-row>input{position:absolute;opacity:0;width:1px;height:1px;padding:
   .nested-set-summary .minimum-quality{grid-column:1/-1;justify-self:start;margin:0}
   .nested-items{padding-left:10px}
   .intelligence-heading{align-items:flex-start}
+  .intelligence-view::before{left:0;right:0}
   .access-card{grid-template-columns:1fr;padding:21px 18px}
   .access-seal{width:52px;height:52px;font-size:1.75rem}
   .access-form{grid-column:1}
@@ -182,6 +196,8 @@ label.toggle-row>input{position:absolute;opacity:0;width:1px;height:1px;padding:
   .intelligence-toolbar{align-items:flex-start;flex-direction:column}
   .intelligence-toolbar .secondary{width:100%}
   .intelligence-grid{grid-template-columns:1fr}
+  .alt-entry-grid{grid-template-columns:1fr}
+  .intelligence-entry .primary{width:100%}
   .account-group{grid-template-columns:1fr;gap:9px}
   .session-warning{text-align:left}
 }

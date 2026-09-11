@@ -89,7 +89,7 @@
       <div>
         <p class="section-kicker">RESTRICTED ARCHIVE // GUILD ONLY</p>
         <h1>Field Intelligence</h1>
-        <p class="board-subtitle">Authorized guildmates can review friendly alternate accounts and active hunt targets.</p>
+        <p class="board-subtitle">Authorized guildmates can review and submit friendly alternate accounts and active hunt targets.</p>
       </div>
       <span class="classification-badge">CLASSIFIED</span>
     </section>
@@ -143,6 +143,44 @@
           <div class="account-groups" id="huntTargets"></div>
         </article>
       </div>
+      <details class="intelligence-entry" id="altEntry">
+        <summary>＋ Submit Alt Intelligence</summary>
+        <form id="altSubmissionForm">
+          <fieldset id="altSubmissionFields">
+            <legend>Add account intelligence</legend>
+            <div class="alt-entry-grid">
+              <label>Main account
+                <select id="altMainMode">
+                  <option value="existing">Choose a known main account</option>
+                  <option value="new">New main account</option>
+                </select>
+              </label>
+              <label id="knownMainLabel">Known main username
+                <select id="altKnownMain" required><option value="">Select a main account…</option></select>
+              </label>
+              <label id="newMainLabel" class="hidden">New main username
+                <input id="altNewMain" maxlength="120" autocomplete="off" autocapitalize="none" spellcheck="false" disabled />
+              </label>
+              <label>List
+                <select id="altListType" required>
+                  <option value="">Choose a list…</option>
+                  <option value="friendly">Guild Alts — Do Not Attack</option>
+                  <option value="hunt">Hunt Targets — Non-Guild</option>
+                </select>
+              </label>
+              <label class="alt-entry-wide">Alt usernames
+                <textarea id="altUsernames" rows="3" maxlength="1210" aria-describedby="altUsernameHint" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="One username per line, or separated by commas"></textarea>
+                <span class="alt-entry-hint" id="altUsernameHint">Up to 10 usernames per submission. Existing pairs are skipped.</span>
+              </label>
+              <label class="alt-entry-wide">Notes (optional)
+                <textarea id="altNotes" rows="2" maxlength="2000" placeholder="Context or uncertainty about these accounts"></textarea>
+              </label>
+            </div>
+            <button class="primary" id="submitAltIntelligence" type="submit">Save Intelligence</button>
+          </fieldset>
+          <p class="access-message" id="altSubmissionMessage" role="status" aria-live="polite"></p>
+        </form>
+      </details>
       <p class="session-warning">Refreshing or leaving this page locks the archive again.</p>
     </section>
   </main>
