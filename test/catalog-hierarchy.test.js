@@ -31,8 +31,23 @@ test("catalog preserves assembled subsets instead of flattening their items into
 
     if (table === "Assembled Items") {
       return Response.json({ records: [
-        { id: childSet, fields: { Name: "Mashed Potatoes", Components: [itemA, itemB] } },
-        { id: parentSet, fields: { Name: "Delicious Meal", Components: [itemC], "Set Components": [childSet] } },
+        { id: childSet, fields: {
+          Name: "Mashed Potatoes",
+          Components: [itemA, itemB],
+          Difficulty: 3.125,
+          "Q5 Attack": 40,
+          "Q5 Defense": 50,
+        } },
+        { id: parentSet, fields: {
+          Name: "Delicious Meal",
+          Components: [itemC],
+          "Set Components": [childSet],
+          Difficulty: 6.64,
+          "Q5 Attack": 95,
+          "Q5 Defense": 101,
+          "Q10 Attack": 245,
+          "Q10 Defense": 245,
+        } },
       ] });
     }
 
@@ -48,4 +63,11 @@ test("catalog preserves assembled subsets instead of flattening their items into
   assert.deepEqual(meal.components.map((component) => component.name), ["Steak", "Mashed Potatoes"]);
   assert.equal(meal.components[1].type, "set");
   assert.deepEqual(meal.components[1].components.map((component) => component.name), ["Potato", "Peeler"]);
+  assert.equal(meal.difficulty, 6.64);
+  assert.equal(meal.q5Attack, 95);
+  assert.equal(meal.q5Defense, 101);
+  assert.equal(meal.q10Attack, 245);
+  assert.equal(meal.q10Defense, 245);
+  assert.equal(meal.components[1].difficulty, 3.125);
 });
+

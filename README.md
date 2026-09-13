@@ -9,6 +9,7 @@ Guild project hub for the Bureau of Antiquities in RUIN.
 - Lets guild members add and edit projects from the website
 - Marks completed projects as complete in Airtable so they disappear from the active board
 - Records Q1–Q10 for found components and calculates the live 9.50-average Q10 requirement
+- Compares each set's difficulty with its Q5 or Q10 Attack and Defense values on the project card
 - Resolves each nested assembled subset from its direct components, then counts that subset's resulting quality once in its parent set
 - Provides a codeword-protected Field Intelligence registry for guild alts and hunt targets
 - Lets authorized guildmates submit up to 10 alts for a known or new main account, with a list type and optional notes
@@ -35,6 +36,8 @@ Create a base with a table named `Projects` and these fields:
 | Assembled Item | Link to Assembled Items |
 | Collected Components | Link to Items |
 | Component Qualities | Long text (website-managed JSON) |
+
+The linked `Assembled Items` table supplies `Difficulty`, `Q5 Attack`, `Q5 Defense`, `Q10 Attack`, and `Q10 Defense`. These values stay on the assembled item; the project card selects Q5 or Q10 from its linked record based on `Q10 Set`.
 
 Create an Airtable personal access token with record read/write permission for only this base.
 
@@ -86,3 +89,4 @@ Then add `AIRTABLE_TOKEN` as a secret on the deployed Cloudflare Worker and set 
 ## Current design
 
 The site uses a medium-dark antique-gold palette with scavenged-loot styling and a boa-inspired guild mark. The interface is deliberately simple so it can grow later into a broader guild hub without rebuilding the project system.
+

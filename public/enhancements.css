@@ -18,6 +18,7 @@ body{
 .project-card{backdrop-filter:blur(3px)}
 .title-line{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .q10-badge{display:inline-flex;align-items:center;min-height:24px;padding:4px 8px;border:1px solid #d0a83d;border-radius:999px;background:linear-gradient(180deg,#3f3517,#292311);color:#ffe18a;font-size:.6rem;font-weight:950;letter-spacing:.1em;white-space:nowrap;box-shadow:inset 0 0 10px rgba(224,185,79,.08)}
+.set-stats{margin:-7px 0 13px;padding:7px 10px;border:1px solid #4d4125;border-radius:7px;background:rgba(17,15,10,.5);color:#d9cda8;font-size:.68rem;font-weight:850;line-height:1.4;letter-spacing:.015em;font-variant-numeric:tabular-nums}
 .item-total.all-found{border-color:#315e55;color:#c8f5eb;background:#203b35}
 .items li::before{display:none!important}
 .items li.component-row{padding:0;overflow:hidden}
@@ -206,3 +207,4 @@ label.toggle-row>input{position:absolute;opacity:0;width:1px;height:1px;padding:
   .masthead-controls{align-items:stretch;flex-direction:column}
   .masthead-action{width:100%}
 }
+

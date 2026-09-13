@@ -260,6 +260,12 @@ function recordIds(value) {
   return Array.isArray(value) ? value.filter((id) => typeof id === "string" && /^rec[A-Za-z0-9]{14}$/.test(id)) : [];
 }
 
+function optionalNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 function parseComponentQualities(value) {
   let source = value;
   if (typeof source === "string") {
@@ -304,7 +310,17 @@ async function buildCatalog(env) {
   try {
     [itemRecords, assembledRecords] = await Promise.all([
       listAllRecords(env, itemsTable, ["Name", "Rarity"], "NOT({Assembled Items}=BLANK())"),
-      listAllRecords(env, assembledTable, ["Name", "Location", "Components", "Set Components"]),
+      listAllRecords(env, assembledTable, [
+        "Name",
+        "Location",
+        "Components",
+        "Set Components",
+        "Difficulty",
+        "Q5 Attack",
+        "Q5 Defense",
+        "Q10 Attack",
+        "Q10 Defense",
+      ]),
     ]);
   } catch {
     throw new Error("Unable to load the Airtable item catalog.");
@@ -321,6 +337,11 @@ async function buildCatalog(env) {
     id: record.id,
     name: record.fields.Name || "Unnamed set",
     location: record.fields.Location || "",
+    difficulty: optionalNumber(record.fields.Difficulty),
+    q5Attack: optionalNumber(record.fields["Q5 Attack"]),
+    q5Defense: optionalNumber(record.fields["Q5 Defense"]),
+    q10Attack: optionalNumber(record.fields["Q10 Attack"]),
+    q10Defense: optionalNumber(record.fields["Q10 Defense"]),
     componentIds: recordIds(record.fields.Components),
     setComponentIds: recordIds(record.fields["Set Components"]),
   }]));
@@ -333,6 +354,11 @@ async function buildCatalog(env) {
         id: assembled.id,
         name: assembled.name,
         location: assembled.location,
+        difficulty: assembled.difficulty,
+        q5Attack: assembled.q5Attack,
+        q5Defense: assembled.q5Defense,
+        q10Attack: assembled.q10Attack,
+        q10Defense: assembled.q10Defense,
         rarity: "Assembled",
         type: "set",
         cycle: true,
@@ -351,6 +377,11 @@ async function buildCatalog(env) {
       id: assembled.id,
       name: assembled.name,
       location: assembled.location,
+      difficulty: assembled.difficulty,
+      q5Attack: assembled.q5Attack,
+      q5Defense: assembled.q5Defense,
+      q10Attack: assembled.q10Attack,
+      q10Defense: assembled.q10Defense,
       rarity: "Assembled",
       type: "set",
       components: [...itemComponents, ...setComponents],
@@ -491,3 +522,4 @@ export default {
     return env.ASSETS.fetch(request);
   },
 };
+

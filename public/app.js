@@ -3,6 +3,7 @@ import {
   collectLeafComponents,
   evaluateComponent,
 } from "./q10-math.js";
+import { formatSetStats } from "./set-stats.js";
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -424,7 +425,14 @@ function renderProjectComponent(project, component, parentPlan, trackQ10, depth 
 function render() {
   const query = $("#search").value.trim().toLowerCase();
   const filtered = projects.filter((project) => {
-    const text = [project.owner, project.title, componentSearchText(project), project.q10 ? "q10" : ""]
+    const assembled = projectAssembled(project);
+    const text = [
+      project.owner,
+      project.title,
+      componentSearchText(project),
+      project.q10 ? "q10" : "q5",
+      formatSetStats(assembled, project.q10),
+    ]
       .join(" ")
       .toLowerCase();
     return text.includes(query);
@@ -457,6 +465,11 @@ function render() {
     const q10Badge = node.querySelector(".q10-badge");
     q10Badge.classList.toggle("hidden", !project.q10);
     if (q10Requirements) renderQ10Progress(node, q10Requirements);
+
+    const setStats = node.querySelector(".set-stats");
+    const setStatsText = formatSetStats(assembled, project.q10);
+    setStats.textContent = setStatsText;
+    setStats.classList.toggle("hidden", !setStatsText);
 
     const total = node.querySelector(".item-total");
     total.textContent = leaves.length
@@ -941,3 +954,4 @@ dialog.addEventListener("close", () => {
 syncViewFromHash();
 lockIntelligence();
 loadAll();
+
