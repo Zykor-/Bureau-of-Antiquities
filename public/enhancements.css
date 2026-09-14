@@ -16,6 +16,9 @@ body{
 .main-shell::before{content:"";position:absolute;inset:12px -28px auto;height:360px;pointer-events:none;z-index:-1;background:radial-gradient(ellipse at center,rgba(188,145,39,.07),transparent 68%)}
 .project-grid{row-gap:42px}
 .project-card{backdrop-filter:blur(3px)}
+.card-actions{flex-wrap:wrap}
+.complete-confirmation{flex:1 0 100%;grid-column:1/-1;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;padding-top:10px;border-top:1px solid #55451f}
+.complete-confirmation p{flex:1 0 100%;margin:0 0 4px;color:#eadfbe;font-size:.8rem;overflow-wrap:anywhere}
 .title-line{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .q10-badge{display:inline-flex;align-items:center;min-height:24px;padding:4px 8px;border:1px solid #d0a83d;border-radius:999px;background:linear-gradient(180deg,#3f3517,#292311);color:#ffe18a;font-size:.6rem;font-weight:950;letter-spacing:.1em;white-space:nowrap;box-shadow:inset 0 0 10px rgba(224,185,79,.08)}
 .set-stats{margin:-7px 0 13px;padding:7px 10px;border:1px solid #4d4125;border-radius:7px;background:rgba(17,15,10,.5);color:#d9cda8;font-size:.68rem;font-weight:850;line-height:1.4;letter-spacing:.015em;font-variant-numeric:tabular-nums}

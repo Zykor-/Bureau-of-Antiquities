@@ -490,7 +490,42 @@ function render() {
     }
 
     node.querySelector(".edit").addEventListener("click", () => openEdit(project));
-    node.querySelector(".complete").addEventListener("click", () => completeProject(project));
+    const completeButton = node.querySelector(".complete");
+    completeButton.addEventListener("click", () => {
+      const actions = completeButton.parentElement;
+      if (actions.querySelector(".complete-confirmation")) return;
+      const confirmation = document.createElement("div");
+      confirmation.className = "complete-confirmation";
+      const message = document.createElement("p");
+      message.textContent = `Archive ${project.title} as complete?`;
+      const confirmButton = document.createElement("button");
+      confirmButton.type = "button";
+      confirmButton.className = "small complete";
+      confirmButton.textContent = "Confirm completion";
+      const cancelButton = document.createElement("button");
+      cancelButton.type = "button";
+      cancelButton.className = "small";
+      cancelButton.textContent = "Cancel";
+      cancelButton.addEventListener("click", () => {
+        confirmation.remove();
+        completeButton.focus();
+      });
+      confirmButton.addEventListener("click", async () => {
+        confirmButton.disabled = true;
+        cancelButton.disabled = true;
+        confirmButton.textContent = "Saving…";
+        const saved = await completeProject(project);
+        if (!saved) {
+          confirmButton.disabled = false;
+          cancelButton.disabled = false;
+          confirmButton.textContent = "Retry completion";
+          message.textContent = "Completion could not be saved. Please retry.";
+        }
+      });
+      confirmation.append(message, cancelButton, confirmButton);
+      actions.appendChild(confirmation);
+      confirmButton.focus();
+    });
     projectsEl.appendChild(node);
   }
 
@@ -682,7 +717,6 @@ function openEdit(project) {
 }
 
 async function completeProject(project) {
-  if (!confirm(`Mark “${project.title}” complete and remove it from active projects?`)) return;
   try {
     await fetchJson(`/api/projects/${project.id}`, {
       method: "PATCH",
@@ -692,8 +726,10 @@ async function completeProject(project) {
     projects = projects.filter((item) => item.id !== project.id);
     render();
     showNotice("Dossier archived as complete.");
+    return true;
   } catch (err) {
     showNotice(err.message, true);
+    return false;
   }
 }
 
