@@ -123,3 +123,29 @@ export function calculateQ10Requirements(components, collectedComponentIds, comp
     10,
   );
 }
+
+// Repairs are hypothetical: never mutate the qualities stored on the project.
+export function calculateQualityProjection(setComponent, collectedComponentIds, componentQualities) {
+  const current = evaluateComponent(setComponent, collectedComponentIds, componentQualities);
+  const collected = new Set(collectedComponentIds || []);
+  const leaves = collectLeafComponents(setComponent);
+  const missing = leaves.filter((item) => !collected.has(item.id));
+  const unknown = leaves.filter((item) => collected.has(item.id) && validQuality(componentQualities?.[item.id]) === null);
+  if (!current.complete) return { current, possible: null, repairs: [], missing, unknown };
+
+  const qualities = { ...componentQualities };
+  const candidates = [...new Map(leaves.filter((item) => qualities[item.id] < 5).map((item) => [item.id, item])).values()];
+  for (const item of candidates) qualities[item.id] = 5;
+  const possible = evaluateComponent(setComponent, collectedComponentIds, qualities);
+  // Remove repairs that do not affect the maximum rounded output. This produces
+  // a sufficient plan, not a claim about the cheapest repair cost or order.
+  const repairs = [];
+  for (const item of candidates) {
+    qualities[item.id] = componentQualities[item.id];
+    if (evaluateComponent(setComponent, collectedComponentIds, qualities).quality < possible.quality) {
+      qualities[item.id] = 5;
+      repairs.push({ id: item.id, name: item.name, from: Number(componentQualities[item.id]), to: 5 });
+    }
+  }
+  return { current, possible, repairs, missing, unknown };
+}

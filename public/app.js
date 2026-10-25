@@ -1,5 +1,6 @@
 import {
   calculateSetRequirements,
+  calculateQualityProjection,
   collectLeafComponents,
   evaluateComponent,
 } from "./q10-math.js";
@@ -205,7 +206,7 @@ function componentSearchText(project) {
 }
 
 function renderQ10Progress(node, requirements) {
-  const progress = node.querySelector(".q10-progress");
+  const progress = node.querySelector(".q10-progress:not(.quality-projection)");
   const main = progress.querySelector(".q10-progress-main");
   const detail = progress.querySelector(".q10-progress-detail");
   progress.className = "q10-progress";
@@ -272,6 +273,37 @@ function makeQualitySelect(project, component) {
     : "";
   select.addEventListener("change", () => setComponentQuality(project, component.id, Number(select.value)));
   return select;
+}
+
+function renderQualityProjection(node, project, assembled) {
+  const projection = calculateQualityProjection(assembled, project.collectedComponentIds, project.componentQualities);
+  const panel = node.querySelector('.quality-projection');
+  const main = panel.querySelector('.quality-projection-main');
+  const detail = panel.querySelector('.quality-projection-detail');
+  if (!projection.current.complete) {
+    main.textContent = 'Projected output: unknown';
+    detail.textContent = projection.missing.length || projection.unknown.length
+      ? `Awaiting ${projection.missing.length} unselected component(s) and ${projection.unknown.length} recorded quality value(s). Repair maximum is unknown until these are entered.`
+      : 'Link the required components to calculate output and repair potential.';
+    return;
+  }
+  main.textContent = `Projected output: Q${projection.current.quality} · Maximum after Q5 repairs: Q${projection.possible.quality}`;
+  detail.textContent = projection.possible.quality > projection.current.quality
+    ? 'Repairs can improve the output. One sufficient repair plan is listed below; other plans may also work.'
+    : 'Q5 repairs cannot improve the resulting output quality.';
+  if (projection.repairs.length) {
+    const details = document.createElement('details');
+    const summary = document.createElement('summary');
+    summary.textContent = `Components to repair (${projection.repairs.length})`;
+    const list = document.createElement('ul');
+    for (const repair of projection.repairs) {
+      const item = document.createElement('li');
+      item.textContent = `${repair.name}: Q${repair.from} → Q5`;
+      list.appendChild(item);
+    }
+    details.append(summary, list);
+    panel.appendChild(details);
+  }
 }
 
 function makeMinimumQuality(plan, nestedSet = false) {
@@ -461,6 +493,7 @@ function render() {
 
     node.querySelector(".owner").textContent = project.owner;
     node.querySelector(".project-title").textContent = project.title;
+    renderQualityProjection(node, project, assembled);
 
     const q10Badge = node.querySelector(".q10-badge");
     q10Badge.classList.toggle("hidden", !project.q10);

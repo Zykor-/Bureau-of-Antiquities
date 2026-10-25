@@ -90,3 +90,9 @@ Then add `AIRTABLE_TOKEN` as a secret on the deployed Cloudflare Worker and set 
 
 The site uses a medium-dark antique-gold palette with scavenged-loot styling and a boa-inspired guild mark. The interface is deliberately simple so it can grow later into a broader guild hub without rebuilding the project system.
 
+
+## Output quality and repairs
+
+Every project shows the assembled output and the maximum after repairing recorded Q1-Q4 items to Q5. The calculation reuses the existing immediate-component average and half-up rounding at every subset level; Q6+ items remain unchanged. Expand the repair plan for one sufficient set of repairs (not a cheapest-cost guarantee). No saved qualities are changed by this preview.
+
+Unselected items and missing qualities leave both outputs unknown. The existing schema records individual item selections; nested-set qualities are calculated from their children, rather than entered separately. Repair plans assume those items can be repaired before assembly. Owners and qualities continue to use the existing Airtable fields.
