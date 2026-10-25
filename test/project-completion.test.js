@@ -1,6 +1,26 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import worker from '../src/worker.js';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+test('completed subset badges do not steal the completion button handler', () => {
+  const source = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const start = source.indexOf('const completeButton =');
+  const end = source.indexOf('projectsEl.appendChild(node);', start);
+  assert.ok(start >= 0 && end > start);
+  const badge = { addEventListener() { assert.fail('Handler attached to subset badge'); } };
+  const handlers = {};
+  const button = { addEventListener(event, handler) { handlers[event] = handler; } };
+  const node = { querySelector(selector) {
+    // A completed nested-set-result precedes the action button in each affected card.
+    if (selector === '.complete') return badge;
+    assert.equal(selector, 'button.complete');
+    return button;
+  } };
+  vm.runInNewContext(source.slice(start, end), { node });
+  assert.equal(typeof handlers.click, 'function');
+});
 
 test('completion archives only the project and active queries exclude it', async (t) => {
   const id = 'recABCDEFGHIJKLMN';

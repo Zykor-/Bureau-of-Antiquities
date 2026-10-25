@@ -490,7 +490,7 @@ function render() {
     }
 
     node.querySelector(".edit").addEventListener("click", () => openEdit(project));
-    const completeButton = node.querySelector(".complete");
+    const completeButton = node.querySelector("button.complete");
     completeButton.addEventListener("click", () => {
       const actions = completeButton.parentElement;
       if (actions.querySelector(".complete-confirmation")) return;
