@@ -613,7 +613,7 @@ function setActiveComboOption(index) {
 function renderCombo(query = "") {
   const normalized = normalizeSetSearch(query);
   comboResults = catalog
-    .filter((item) => !normalized || normalizeSetSearch(`${item.name} ${item.location || ""}`).includes(normalized))
+    .filter((item) => !normalized || normalizeSetSearch(item.name).includes(normalized))
     .slice(0, 80);
 
   setDropdown.innerHTML = "";
