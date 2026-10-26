@@ -1,3 +1,4 @@
+import { normalizeSetSearch, findProjectSet } from "./set-lookup.js";
 import {
   calculateSetRequirements,
   calculateQualityProjection,
@@ -169,7 +170,7 @@ function rarityClass(rarity) {
 }
 
 function projectAssembled(project) {
-  const assembled = catalogById.get(project.assembledItemId);
+  const assembled = findProjectSet(project, catalog, catalogById);
   if (assembled) return assembled;
   return {
     id: "",
@@ -610,9 +611,9 @@ function setActiveComboOption(index) {
 }
 
 function renderCombo(query = "") {
-  const normalized = query.trim().toLowerCase();
+  const normalized = normalizeSetSearch(query);
   comboResults = catalog
-    .filter((item) => !normalized || `${item.name} ${item.location || ""}`.toLowerCase().includes(normalized))
+    .filter((item) => !normalized || normalizeSetSearch(`${item.name} ${item.location || ""}`).includes(normalized))
     .slice(0, 80);
 
   setDropdown.innerHTML = "";
@@ -735,7 +736,7 @@ function openEdit(project) {
   $("#owner").value = project.owner;
   $("#q10Set").checked = Boolean(project.q10);
 
-  const assembled = catalogById.get(project.assembledItemId);
+  const assembled = findProjectSet(project, catalog, catalogById);
   if (assembled) {
     selectCatalogItem(assembled);
   } else {
@@ -838,7 +839,7 @@ form.addEventListener("submit", async (event) => {
     q10: $("#q10Set").checked,
   };
 
-  if (id && editingProject && editingProject.assembledItemId !== selected.id) {
+  if (id && editingProject && findProjectSet(editingProject, catalog, catalogById)?.id !== selected.id) {
     payload.collectedComponentIds = [];
     payload.componentQualities = {};
   }
